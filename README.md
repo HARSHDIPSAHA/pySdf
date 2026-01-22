@@ -21,10 +21,41 @@ formulas are referenced from
 python render_all_sdfs.py
 ```
 
+### 3D volume renders (yt)
+
+This uses yt volume rendering to make 3D snapshots and saves them to `vis3d/`:
+
+```bash
+python render_all_sdfs_3d.py
+```
+
+Notes:
+- Requires `yt` (`pip install yt`).
+- Rendering all shapes can take a while; reduce `n` in `render_all_sdfs_3d.py`
+  if you need faster previews.
+
+### 3D renders from AMReX plotfiles (yt)
+
+If you have AMReX plotfiles (e.g., `plt00000/`), yt can load them directly
+and you can volume render or slice them. Example:
+
+```python
+import yt
+
+ds = yt.load("./plt00000/")
+sc = yt.create_scene(ds, field="sdf")
+sc.save("rendering.png")
+```
+
+This is useful when you want to render the full AMReX dataset (including
+refinement) instead of the uniform grid used in `render_all_sdfs_3d.py`.
+
 ## Output
 
 Each SDF produces a `vis/<name>.png` visualization with a diverging colormap
 and the zero level-set contour drawn in black.
+
+The 3D volume renders are saved to `vis3d/<name>.png`.
 
 ## Color guide for `vis/` images
 
@@ -34,6 +65,9 @@ The PNGs use a diverging colormap:
 - Red tones: positive SDF values (outside the shape).
 - White/near zero: near the surface.
 - Black contour line: the zero level set (the shape boundary).
+
+For `vis3d/`, the volume render highlights values near the zero level set,
+so the visible surface corresponds to the SDF = 0 boundary.
 
 ## How pyAMReX helps
 
