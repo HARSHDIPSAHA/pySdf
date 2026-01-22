@@ -1,17 +1,106 @@
 import os
 
 import numpy as np
-import yt
 
 import sdf_lib as sdf
 
+try:
+    import amrex.space3d as amr
+except ImportError as exc:  # pragma: no cover - runtime environment specific
+    raise SystemExit("pyAMReX not available (amrex.space3d import failed)") from exc
 
-def build_volume(n=96, bounds=(-0.5, 0.5)):
-    lo, hi = bounds
-    coords = np.linspace(lo, hi, n, endpoint=False) + (hi - lo) / (2.0 * n)
-    z, y, x = np.meshgrid(coords, coords, coords, indexing="ij")
-    p = sdf.vec3(x, y, z)
-    return p
+try:
+    import yt
+except ImportError as exc:  # pragma: no cover - runtime environment specific
+    raise SystemExit("yt not available (pip install yt)") from exc
+
+
+def build_grid(n=96, max_grid_size=32, prob_lo=None, prob_hi=None):
+    if prob_lo is None:
+        prob_lo = [-0.5, -0.5, -0.5]
+    if prob_hi is None:
+        prob_hi = [0.5, 0.5, 0.5]
+
+    real_box = amr.RealBox(prob_lo, prob_hi)
+    domain = amr.Box(np.array([0, 0, 0]), np.array([n - 1, n - 1, n - 1]))
+    geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
+
+    ba = amr.BoxArray(domain)
+    ba.max_size(max_grid_size)
+    dm = amr.DistributionMapping(ba)
+    return geom, ba, dm, prob_lo
+
+
+def fill_multifab_3d(sdf_mf, geom, prob_lo, sdf_func):
+    dx = geom.data().CellSize()
+    for mfi in sdf_mf:
+        arr = sdf_mf.array(mfi).to_numpy()
+        bx = mfi.validbox()
+
+        i_lo, j_lo, k_lo = bx.lo_vect
+        i_hi, j_hi, k_hi = bx.hi_vect
+
+        i = np.arange(i_lo, i_hi + 1)
+        j = np.arange(j_lo, j_hi + 1)
+        k = np.arange(k_lo, k_hi + 1)
+
+        x = (i + 0.5) * dx[0] + prob_lo[0]
+        y = (j + 0.5) * dx[1] + prob_lo[1]
+        z = (k + 0.5) * dx[2] + prob_lo[2]
+
+        Z, Y, X = np.meshgrid(z, y, x, indexing="ij")
+        p = sdf.vec3(X, Y, Z)
+
+        arr[:, :, :, 0, 0] = sdf_func(p)
+
+
+def write_plotfile(plotfile, mf, geom, varnames):
+    if hasattr(amr, "WriteSingleLevelPlotfile"):
+        amr.WriteSingleLevelPlotfile(plotfile, mf, varnames, geom, 0.0, 0)
+        return
+    if hasattr(amr, "write_plotfile"):
+        amr.write_plotfile(plotfile, mf, varnames, geom, 0.0, 0)
+        return
+    if hasattr(amr, "write_single_level_plotfile"):
+        amr.write_single_level_plotfile(plotfile, mf, varnames, geom, 0.0, 0)
+        return
+    raise RuntimeError("No plotfile writer found in pyAMReX API")
+
+
+def pick_yt_field(ds, name="sdf"):
+    if ("boxlib", name) in ds.field_list:
+        return ("boxlib", name)
+    return name
+
+
+def render_plotfile(plotfile, out_dir):
+    ds = yt.load(plotfile)
+    field = pick_yt_field(ds, "sdf")
+
+    ad = ds.all_data()
+    vmin = float(ad[field].min())
+    vmax = float(ad[field].max())
+    dx = float(ds.domain_width[0] / ds.domain_dimensions[0])
+    width = 2.0 * dx
+
+    sc = yt.create_scene(ds, field=field)
+    sc.background = (0.0, 0.0, 0.0, 1.0)
+    source = sc[0]
+    source.set_log(False)
+
+    tf = yt.ColorTransferFunction((vmin, vmax))
+    tf.add_gaussian(0.0, width=width, height=[1.0, 0.9, 0.2, 1.0])
+    source.transfer_function = tf
+
+    cam = sc.camera
+    cam.focus = ds.domain_center
+    cam.width = ds.domain_width
+    cam.position = ds.domain_center + ds.domain_width * np.array([1.5, 1.5, 1.5])
+    cam.switch_orientation()
+
+    name = os.path.basename(plotfile.rstrip("/\\"))
+    out_path = os.path.join(out_dir, f"{name}.png")
+    sc.save(out_path, sigma_clip=4.0)
 
 
 def make_cases():
@@ -91,45 +180,31 @@ def rotation_z(theta):
     return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
 
 
-def render_volume(values, name, out_dir, bounds=(-0.5, 0.5)):
-    bbox = np.array([[bounds[0], bounds[1]], [bounds[0], bounds[1]], [bounds[0], bounds[1]]])
-    ds = yt.load_uniform_grid({"sdf": values.astype(np.float64)}, values.shape, bbox=bbox)
-
-    vmin = float(values.min())
-    vmax = float(values.max())
-    dx = (bounds[1] - bounds[0]) / values.shape[0]
-    width = 2.0 * dx
-
-    sc = yt.create_scene(ds, field="sdf")
-    sc.background = (0.0, 0.0, 0.0, 1.0)
-    source = sc[0]
-    source.set_log(False)
-
-    tf = yt.ColorTransferFunction((vmin, vmax))
-    tf.add_gaussian(0.0, width=width, height=[1.0, 0.9, 0.2, 1.0])
-    source.transfer_function = tf
-
-    cam = sc.camera
-    cam.focus = ds.domain_center
-    cam.width = ds.domain_width
-    cam.position = ds.domain_center + ds.domain_width * np.array([1.5, 1.5, 1.5])
-    cam.switch_orientation()
-
-    path = os.path.join(out_dir, f"{name}.png")
-    sc.save(path, sigma_clip=4.0)
-
-
 def main():
-    out_dir = "vis3d"
-    os.makedirs(out_dir, exist_ok=True)
+    amr.initialize([])
+    try:
+        if amr.Config.spacedim != 3:
+            print("ERROR: pyAMReX not built in 3D")
+            return
 
-    n = 96
-    p = build_volume(n=n)
+        plot_dir = "plotfiles"
+        out_dir = "vis3d_plotfile"
+        os.makedirs(plot_dir, exist_ok=True)
+        os.makedirs(out_dir, exist_ok=True)
 
-    for name, sdf_func in make_cases():
-        values = sdf_func(p)
-        render_volume(values, name, out_dir)
-        print(f"Saved: {name}.png")
+        geom, ba, dm, prob_lo = build_grid()
+        sdf_mf = amr.MultiFab(ba, dm, 1, 0)
+
+        for name, sdf_func in make_cases():
+            sdf_mf.set_val(0.0)
+            fill_multifab_3d(sdf_mf, geom, prob_lo, sdf_func)
+
+            plotfile = os.path.join(plot_dir, name)
+            write_plotfile(plotfile, sdf_mf, geom, ["sdf"])
+            render_plotfile(plotfile, out_dir)
+            print(f"Saved: {plotfile} and {name}.png")
+    finally:
+        amr.finalize()
 
 
 if __name__ == "__main__":

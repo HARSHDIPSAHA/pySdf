@@ -57,6 +57,22 @@ and the zero level-set contour drawn in black.
 
 The 3D volume renders are saved to `vis3d/<name>.png`.
 
+### Plotfiles + 3D snapshots (yt)
+
+This workflow writes AMReX plotfiles for each SDF and then renders each
+plotfile to a PNG:
+
+```bash
+python render_all_sdfs_plotfiles.py
+```
+
+Outputs:
+- `plotfiles/<name>/` (AMReX plotfiles)
+- `vis3d_plotfile/<name>.png` (volume renders)
+
+Notes:
+- Requires pyAMReX built in 3D and `yt` installed.
+
 ## Color guide for `vis/` images
 
 The PNGs use a diverging colormap:
