@@ -3,9 +3,10 @@
 This repo implements the signed distance functions and operators listed on
 the Inigo Quilez "Distance Functions" article, and evaluates them with
 pyAMReX on a 2D grid (z = 0 slice) to generate visualization PNGs. The
-visualization workflow uses pyAMReX's `MultiFab` to fill SDF values on a
-structured grid. [pyAMReX](https://pyamrex.readthedocs.io/en/latest/) and
-the original SDF formulas are referenced from
+visualization workflow uses pyAMReX to build a structured grid, split it into
+boxes, distribute those boxes, and store the SDF values in a `MultiFab`.
+[pyAMReX](https://pyamrex.readthedocs.io/en/latest/) and the original SDF
+formulas are referenced from
 [iquilezles.org](https://iquilezles.org/articles/distfunctions/).
 
 ## Files
@@ -24,6 +25,48 @@ python render_all_sdfs.py
 
 Each SDF produces a `vis/<name>.png` visualization with a diverging colormap
 and the zero level-set contour drawn in black.
+
+## How pyAMReX helps
+
+pyAMReX provides the grid/mesh infrastructure that makes it easy to evaluate
+an SDF on a structured domain and scale the work later if needed:
+
+- `BoxArray` defines how the domain is split into tiles.
+- `DistributionMapping` assigns each tile to a compute resource.
+- `MultiFab` stores grid-aligned data (the SDF values) for each tile.
+
+In `render_all_sdfs.py`, the line below allocates the SDF storage:
+
+```python
+sdf_mf = amr.MultiFab(ba, dm, 1, 0)
+```
+
+`MultiFab(BoxArray, DistributionMapping, ncomp, ngrow)` means:
+
+- `ba`: how the domain is split into boxes.
+- `dm`: who owns each box (CPU/GPU/threads).
+- `1`: one component per cell (the SDF value).
+- `0`: no ghost cells.
+
+Because `ncomp = 1` and `ngrow = 0`, each tile is accessed as
+`arr[:, :, 0, 0]`, which is the scalar SDF field for that box.
+
+## Short syntax guide
+
+These are the core AMReX objects used in `render_all_sdfs.py`, explained in
+plain terms:
+
+- `amr.RealBox(prob_lo, prob_hi)`: defines the physical bounds of the domain
+  (e.g., x and y from 0 to 1).
+- `amr.Box(lo, hi)`: defines the integer index region (grid indices), like
+  i = 0..n-1 and j = 0..n-1.
+- `amr.Geometry(domain, real_box, coord, is_periodic)`: ties index space to
+  physical space and stores geometry info such as cell spacing (`dx`).
+- `amr.BoxArray(domain)`: describes how the index domain is split into boxes.
+  `max_size` limits each box size for parallelism and cache efficiency.
+- `amr.DistributionMapping(ba)`: assigns those boxes to compute resources.
+- `amr.MultiFab(ba, dm, ncomp, ngrow)`: stores grid data for each box.
+  Here it stores one SDF value per cell with no ghost cells.
 
 ## Notes
 
