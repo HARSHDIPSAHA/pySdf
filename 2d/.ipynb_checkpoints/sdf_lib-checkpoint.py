@@ -550,13 +550,13 @@ def sdSegment2D(p, a, b):
     h = clamp(dot(pa, ba) / dot2(ba), 0.0, 1.0)
     return length(pa - ba * h[..., None])
 
-# 2D Rhombus
 def sdRhombus2D(p, b):
     """2D Rhombus. p is vec2, b is vec2 half-size."""
     p = np.abs(p)
-    h = clamp((-2.0 * dot2(p) + dot2(b)) / dot2(b), -1.0, 1.0)
+    h = clamp((-2.0 * dot(p, p) + dot2(b)) / dot2(b), -1.0, 1.0)
     d = length(p - 0.5 * b * vec2(1.0 - h, 1.0 + h))
     return d * np.sign(p[..., 0] * b[1] + p[..., 1] * b[0] - b[0] * b[1])
+
 
 # 2D Trapezoid
 def sdTrapezoid2D(p, r1, r2, he):
@@ -570,20 +570,20 @@ def sdTrapezoid2D(p, r1, r2, he):
     s = np.where((cb[..., 0] < 0.0) & (ca[..., 1] < 0.0), -1.0, 1.0)
     return s * np.sqrt(np.minimum(dot2(ca), dot2(cb)))
 
-# 2D Parallelogram
 def sdParallelogram2D(p, wi, he, sk):
     """2D Parallelogram. p is vec2, wi is width, he is height, sk is skew."""
     e = vec2(sk, he)
-    p = np.where(p[..., 1] < 0.0, -p, p)
-    w = p - e
+    p_flipped = np.where((p[..., 1:2] < 0.0), -p, p)
+    w = p_flipped - e
     w_x = w[..., 0]
     w_y = w[..., 1]
-    w = np.where((w_x < 0.0)[..., None], vec2(w_x, -w_y), w)
+    w_updated = np.where((w_x < 0.0)[..., None], vec2(w_x, -w_y), w)
+    w_x = w_updated[..., 0]
+    w_y = w_updated[..., 1]
     d = vec2(w_x - clamp(w_x, -wi, wi), w_y)
-    d = np.where((dot(d, d) < 1e-6)[..., None], vec2(wi, he), d)
-    d_clamped = np.where((d[..., 0] > wi)[..., None], vec2(wi, he), d)
-    s = np.sign(wi * he)
-    return -s * length(d_clamped) * s
+    w_len = length(d)
+    d = np.where((w_len < 1e-6)[..., None], vec2(wi, he), d)
+    return -length(np.where((d[..., 0:1] > wi), vec2(wi, he), d)) * np.sign(wi * he)
 
 # 2D Equilateral Triangle
 def sdEquilateralTriangle2D(p, r):
@@ -658,13 +658,21 @@ def sdPentagon2D(p, r):
 def sdHexagon2D(p, r):
     """2D Regular Hexagon. p is vec2, r is circumradius."""
     k = np.array([-0.866025404, 0.5, 0.577350269])
+    
     px = np.abs(p[..., 0])
     py = np.abs(p[..., 1])
-    px = px - 2.0 * np.minimum(dot(vec2(px, py), k[:2]), 0.0) * k[0]
-    py = py - 2.0 * np.minimum(dot(vec2(px, py), k[:2]), 0.0) * k[1]
+    
+    # First fold - FIXED
+    dot_pk = px * k[0] + py * k[1]
+    px = px - 2.0 * np.minimum(dot_pk, 0.0) * k[0]
+    py = py - 2.0 * np.minimum(dot_pk, 0.0) * k[1]
+    
+    # Clamp and offset
     px = px - clamp(px, -k[2] * r, k[2] * r)
     py = py - r
+    
     return length(vec2(px, py)) * np.sign(py)
+
 
 # 2D Octogon
 def sdOctogon2D(p, r):
@@ -690,24 +698,68 @@ def sdHexagram2D(p, r):
     py = py - r
     return length(vec2(px, py)) * np.sign(py)
 
+# 2D Heart
+def sdHeart2D(p):
+    """2D Heart shape. p is vec2."""
+    px = np.abs(p[..., 0])
+    py = p[..., 1]
+    
+    cond = (px + py) > 1.0
+    
+    # Apply condition
+    qx = np.where(cond, px - 0.25, px)
+    qy = np.where(cond, py - 0.75, py)
+    
+    dist = length(vec2(qx, qy))
+    subtract = np.where(cond, np.sqrt(2.0) / 4.0, 1.0)
+    
+    return dist - subtract
+
+
 # 2D Star (5-pointed)
 def sdStar5(p, r, rf):
     """2D 5-pointed Star. p is vec2, r is outer radius, rf is inner factor."""
     k1 = np.array([0.809016994375, -0.587785252292])
     k2 = np.array([-k1[0], k1[1]])
+    
     px = p[..., 0]
     py = p[..., 1]
-    px = px - 2.0 * np.maximum(dot(vec2(px, py), k1), 0.0) * k1[0]
-    py = py - 2.0 * np.maximum(dot(vec2(px, py), k1), 0.0) * k1[1]
-    px = px - 2.0 * np.maximum(dot(vec2(px, py), k2), 0.0) * k2[0]
-    py = py - 2.0 * np.maximum(dot(vec2(px, py), k2), 0.0) * k2[1]
-    px = px * k1[0] + py * k1[1]
-    py = py * k1[0] - px * k1[1]
+    
+    # Fold space
+    dot1 = px * k1[0] + py * k1[1]
+    px = px - 2.0 * np.maximum(dot1, 0.0) * k1[0]
+    py = py - 2.0 * np.maximum(dot1, 0.0) * k1[1]
+    
+    dot2 = px * k2[0] + py * k2[1]
+    px = px - 2.0 * np.maximum(dot2, 0.0) * k2[0]
+    py = py - 2.0 * np.maximum(dot2, 0.0) * k2[1]
+    
+    # Rotate
+    px_old = px
+    px = px_old * k1[0] + py * k1[1]
+    py = py * k1[0] - px_old * k1[1]
+    
     px = np.abs(px)
     py = py - r
-    ba = rf * vec2(-k1[1], k1[0]) - vec2(0.0, 1.0)
-    h = clamp(dot(vec2(px, py), ba) / dot2(ba), 0.0, r)
-    return length(vec2(px, py) - ba * h) * np.sign(py * ba[0] - px * ba[1])
+    
+    # Distance to edge - FIXED BROADCASTING
+    ba_x = rf * (-k1[1]) - 0.0
+    ba_y = rf * k1[0] - 1.0
+    
+    # Compute h with proper shapes
+    dot_pba = px * ba_x + py * ba_y
+    dot_baba = ba_x * ba_x + ba_y * ba_y
+    h = clamp(dot_pba / dot_baba, 0.0, r)
+    
+    # Compute final distance
+    dx = px - ba_x * h
+    dy = py - ba_y * h
+    
+    return length(vec2(dx, dy)) * np.sign(py * ba_x - px * ba_y)
+
+
+
+
 
 # 2D Regular Star (N-pointed)
 def sdStar(p, r, n, m):
@@ -762,18 +814,18 @@ def sdRing2D(p, r1, r2):
     l = length(p)
     return np.maximum(r1 - l, l - r2)
 
-# 2D Horseshoe
 def sdHorseshoe2D(p, c, r, w):
     """2D Horseshoe. p is vec2, c is vec2(sin, cos), r is radius, w is vec2 thickness."""
     px = np.abs(p[..., 0])
     py = p[..., 1]
     l = length(p)
-    px = np.where(py > 0.0, px, l) * np.sign(-c[0])
-    py = np.where(py > 0.0, py, 0.0)
-    px = px - c[0] * r
-    py = py - c[1] * r
-    q = vec2(length(vec2(np.maximum(px, 0.0), py)), 
-             np.where(px < 0.0, py, length(vec2(px, py))))
+    px_adj = np.where((py > 0.0), px, l) * np.sign(-c[0])
+    py_adj = np.where((py > 0.0), py, 0.0)
+    px_final = px_adj - c[0] * r
+    py_final = py_adj - c[1] * r
+    q0 = length(vec2(np.maximum(px_final, 0.0), py_final))
+    q1 = np.where(px_final < 0.0, py_final, length(vec2(px_final, py_final)))
+    q = vec2(q0, q1)
     d = vec2(q[..., 0] - w[0], q[..., 1] - w[1])
     return np.minimum(np.maximum(d[..., 0], d[..., 1]), 0.0) + length(np.maximum(d, 0.0))
 
@@ -826,15 +878,26 @@ def sdEgg2D(p, ra, rb):
                             length(vec2(px, py - k * r)),
                             length(vec2(px + r, py)) - 2.0 * r) - rb)
 
-# 2D Heart
-def sdHeart2D(p):
-    """2D Heart shape. p is vec2."""
+# 2D Hexagon
+def sdHexagon2D(p, r):
+    """2D Regular Hexagon. p is vec2, r is circumradius."""
+    k = np.array([-0.866025404, 0.5, 0.577350269])
+    
     px = np.abs(p[..., 0])
-    py = p[..., 1]
-    cond = px + py > 1.0
-    qx = np.where(cond, px - 0.25, px)
-    qy = np.where(cond, py - 0.75, py)
-    return length(vec2(qx, qy)) - np.where(cond, np.sqrt(2.0) / 4.0, 1.0)
+    py = np.abs(p[..., 1])
+    
+    # First fold - FIXED
+    dot_pk = px * k[0] + py * k[1]
+    px = px - 2.0 * np.minimum(dot_pk, 0.0) * k[0]
+    py = py - 2.0 * np.minimum(dot_pk, 0.0) * k[1]
+    
+    # Clamp and offset
+    px = px - clamp(px, -k[2] * r, k[2] * r)
+    py = py - r
+    
+    return length(vec2(px, py)) * np.sign(py)
+
+
 
 # 2D Cross
 def sdCross2D(p, b, r):
@@ -846,7 +909,7 @@ def sdCross2D(p, b, r):
     py_new = np.where(cond, py, px)
     q = vec2(px_new - b[0], py_new - b[1])
     k = np.maximum(q[..., 1], q[..., 0])
-    w = np.where(k > 0.0, q, vec2(b[1] - px_new, -k))
+    w = np.where((k > 0.0)[..., None], q, vec2(b[1] - px_new, -k))
     return np.sign(k) * length(np.maximum(w, 0.0)) + r
 
 # 2D Rounded X
@@ -875,7 +938,6 @@ def sdPolygon2D(p, v):
         s = np.where(np.all(cond, axis=0) | np.all(~cond, axis=0), -s, s)
     return s * np.sqrt(d)
 
-# 2D Ellipse
 def sdEllipse2D(p, ab):
     """2D Ellipse. p is vec2, ab is vec2 semi-axes."""
     px = np.abs(p[..., 0])
@@ -883,22 +945,30 @@ def sdEllipse2D(p, ab):
     cond = px > py
     px_new = np.where(cond, px, py)
     py_new = np.where(cond, py, px)
-    ab_new = np.where(cond, ab, np.array([ab[1], ab[0]]))
-    l = ab_new[1] * ab_new[1] - ab_new[0] * ab_new[0]
-    m = ab_new[0] * px_new / l
-    n = ab_new[1] * py_new / l
+    
+    a = np.where(cond, ab[0], ab[1])
+    b = np.where(cond, ab[1], ab[0])
+    
+    l = b * b - a * a
+    m = a * px_new / l
+    n = b * py_new / l
     m2 = m * m
     n2 = n * n
     c = (m2 + n2 - 1.0) / 3.0
     c3 = c * c * c
-    d = c3 + m2 * n2
-    q = d + m2 * n2
+    q = c3 + m2 * n2
+    d = c3 + m2 * n2 * 2.0
     g = m + m * n2
+    
     co = np.where(d < 0.0,
-                  (1.0 / 3.0) * np.arccos(safe_div(q, np.power(np.abs(c3), 0.5))) - (np.pi if c < 0.0 else 0.0),
-                  (1.0 / 3.0) * np.log(safe_div(np.sqrt(q) + np.sqrt(d), g)))
-    vec2_val = ab_new * vec2(np.cos(co), np.sin(co))
-    return length(vec2(px_new, py_new) - vec2_val) * np.sign(py_new - vec2_val[..., 1])
+                  (1.0 / 3.0) * np.arccos(q / np.power(np.abs(c3) + 1e-12, 0.5)) - np.where(c < 0.0, np.pi, 0.0),
+                  (1.0 / 3.0) * np.log((np.sqrt(np.abs(q)) + np.sqrt(np.abs(d))) / (np.abs(g) + 1e-12)))
+    
+    vec_x = a * np.cos(co)
+    vec_y = b * np.sin(co)
+    
+    return length(vec2(px_new - vec_x, py_new - vec_y)) * np.sign(py_new - vec_y)
+
 
 # 2D Parabola
 def sdParabola2D(p, k):
@@ -931,32 +1001,32 @@ def sdParabolaSegment2D(p, wi, he):
     x = np.minimum(x, wi)
     return length(vec2(px - x, py - he + x * x * he / (wi * wi))) * np.sign(ik * (py - he) + px * px)
 
-# 2D Bezier (Quadratic)
 def sdBezier2D(p, A, B, C):
     """2D Quadratic Bezier. p is vec2, A/B/C are vec2 control points."""
     a = B - A
     b = A - 2.0 * B + C
     c = a * 2.0
     d = A - p
-    kk = 1.0 / dot2(b)
+    kk = 1.0 / (dot2(b) + 1e-12)
     kx = kk * dot(a, b)
     ky = kk * (2.0 * dot2(a) + dot(d, b)) / 3.0
     kz = kk * dot(d, a)
-    res = 0.0
+    
     p1 = ky - kx * kx
     p3 = p1 * p1 * p1
     q = kx * (2.0 * kx * kx - 3.0 * ky) + kz
     h = q * q + 4.0 * p3
     h_pos = h >= 0.0
-    z = np.where(h_pos[..., None],
-                 np.sqrt(h[..., None]),
-                 np.array([0.0, 0.0]))
-    v = np.sign(q + h_pos * z[..., 0]) * np.power(np.abs(q + h_pos * z[..., 0]), 1.0/3.0)
-    u = np.sign(q - h_pos * z[..., 0]) * np.power(np.abs(q - h_pos * z[..., 0]), 1.0/3.0)
+    
+    z = np.sqrt(np.abs(h))
+    v = np.sign(q + z) * np.power(np.abs(q + z) + 1e-12, 1.0/3.0)
+    u = np.sign(q - z) * np.power(np.abs(q - z) + 1e-12, 1.0/3.0)
+    
     t = clamp(np.where(h_pos, (v + u) - kx, 
-                      2.0 * np.cos(np.arctan2(np.sqrt(-h), q) / 3.0) * np.sqrt(-p1) - kx), 0.0, 1.0)
-    q = d + (c + b * t[..., None]) * t[..., None]
-    return length(q)
+                      2.0 * np.cos(np.arctan2(np.sqrt(-h + 1e-12), q) / 3.0) * np.sqrt(-p1 + 1e-12) - kx), 0.0, 1.0)
+    
+    q_bez = d + (c + b * t[..., None]) * t[..., None]
+    return length(q_bez)
 
 # 2D Blobbycross
 def sdBlobbyCross2D(p, he):
