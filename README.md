@@ -9,6 +9,12 @@ boxes, distribute those boxes, and store the SDF values in a `MultiFab`.
 formulas are referenced from
 [iquilezles.org](https://iquilezles.org/articles/distfunctions/).
 
+## Documentation
+
+- **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)**: Complete API reference with all functions, operations, and examples
+- **[LIBRARY_STRUCTURE.md](LIBRARY_STRUCTURE.md)**: Folder structure and design overview
+- **[examples/](examples/)**: Working examples with mathematical verification
+
 ## Files
 
 - `sdf_lib.py`: numpy implementations of the SDF primitives and operators.
