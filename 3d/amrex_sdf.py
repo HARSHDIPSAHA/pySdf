@@ -3,7 +3,6 @@ import numpy as np
 import amrex.space3d as amr
 
 import sdf_lib as sdf
-from .geometry import Box, RoundBox, Sphere
 
 
 def _get_component_view(arr):
@@ -12,8 +11,15 @@ def _get_component_view(arr):
     return arr[:, :, :, 0, 0]
 
 
-def _copy_mf(src):
-    mf = amr.MultiFab(src.box_array, src.distribution_map, src.n_comp, src.n_grow)
+def _copy_mf_like(src, ba, dm):
+    ncomp = src.n_comp() if callable(getattr(src, "n_comp", None)) else src.n_comp
+    if callable(getattr(src, "n_grow", None)):
+        ngrow = src.n_grow()
+    elif hasattr(src, "nGrow"):
+        ngrow = src.nGrow()
+    else:
+        ngrow = 0
+    mf = amr.MultiFab(ba, dm, ncomp, ngrow)
     for mfi in src:
         arr_src = src.array(mfi).to_numpy()
         arr_dst = mf.array(mfi).to_numpy()
@@ -40,19 +46,32 @@ class SDFLibrary:
         return mf
 
     def sphere(self, center, radius):
-        geom = Sphere(radius).translate(*center)
-        return self.from_geometry(geom)
+        def _sdf(p):
+            return sdf.sdSphere(p - np.array(center, dtype=float), radius)
+        mf = self.create_field()
+        self._fill_multifab(mf, _sdf)
+        return mf
 
     def box(self, center, half_size):
-        geom = Box(half_size).translate(*center)
-        return self.from_geometry(geom)
+        half_size = np.array(half_size, dtype=float)
+        center = np.array(center, dtype=float)
+        def _sdf(p):
+            return sdf.sdBox(p - center, half_size)
+        mf = self.create_field()
+        self._fill_multifab(mf, _sdf)
+        return mf
 
     def round_box(self, center, half_size, radius):
-        geom = RoundBox(half_size, radius).translate(*center)
-        return self.from_geometry(geom)
+        half_size = np.array(half_size, dtype=float)
+        center = np.array(center, dtype=float)
+        def _sdf(p):
+            return sdf.sdRoundBox(p - center, half_size, radius)
+        mf = self.create_field()
+        self._fill_multifab(mf, _sdf)
+        return mf
 
     def union(self, a, b):
-        out = _copy_mf(a)
+        out = _copy_mf_like(a, self.ba, self.dm)
         for mfi in out:
             arr_out = out.array(mfi).to_numpy()
             arr_b = b.array(mfi).to_numpy()
@@ -62,7 +81,7 @@ class SDFLibrary:
         return out
 
     def subtract(self, a, b):
-        out = _copy_mf(a)
+        out = _copy_mf_like(a, self.ba, self.dm)
         for mfi in out:
             arr_out = out.array(mfi).to_numpy()
             arr_b = b.array(mfi).to_numpy()
@@ -72,7 +91,7 @@ class SDFLibrary:
         return out
 
     def intersect(self, a, b):
-        out = _copy_mf(a)
+        out = _copy_mf_like(a, self.ba, self.dm)
         for mfi in out:
             arr_out = out.array(mfi).to_numpy()
             arr_b = b.array(mfi).to_numpy()
@@ -82,7 +101,7 @@ class SDFLibrary:
         return out
 
     def negate(self, a):
-        out = _copy_mf(a)
+        out = _copy_mf_like(a, self.ba, self.dm)
         for mfi in out:
             arr_out = out.array(mfi).to_numpy()
             _get_component_view(arr_out)[...] *= -1.0
@@ -90,7 +109,12 @@ class SDFLibrary:
 
     def _fill_multifab(self, mf, sdf_func):
         dx = self.geom.data().CellSize()
-        prob_lo = self.geom.ProbLoArray()
+        if hasattr(self.geom, "ProbLoArray"):
+            prob_lo = self.geom.ProbLoArray()
+        elif hasattr(self.geom, "ProbLo"):
+            prob_lo = np.array(self.geom.ProbLo())
+        else:
+            raise AttributeError("Geometry has no ProbLoArray/ProbLo accessor")
 
         for mfi in mf:
             arr = mf.array(mfi).to_numpy()

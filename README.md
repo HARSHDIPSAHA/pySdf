@@ -35,6 +35,9 @@ If you want AMReX-native output (MultiFab instead of NumPy), use
 import amrex.space3d as amr
 from sdf3d import SDFLibrary
 
+# Always initialize/finalize AMReX in scripts
+amr.initialize([])
+
 # Build AMReX grid objects
 real_box = amr.RealBox([-1, -1, -1], [1, 1, 1])
 domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(63, 63, 63))
@@ -45,6 +48,39 @@ dm = amr.DistributionMapping(ba)
 
 lib = SDFLibrary(geom, ba, dm)
 mf = lib.sphere(center=(0.0, 0.0, 0.0), radius=0.3)
+
+amr.finalize()
+```
+
+### Example: MultiFab union
+
+```python
+import amrex.space3d as amr
+from sdf3d import SDFLibrary
+
+amr.initialize([])
+try:
+    real_box = amr.RealBox([-1, -1, -1], [1, 1, 1])
+    domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(63, 63, 63))
+    geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
+    ba = amr.BoxArray(domain)
+    ba.max_size(32)
+    dm = amr.DistributionMapping(ba)
+
+    lib = SDFLibrary(geom, ba, dm)
+    a = lib.sphere(center=(-0.3, 0.0, 0.0), radius=0.25)
+    b = lib.sphere(center=(0.3, 0.0, 0.0), radius=0.25)
+    u = lib.union(a, b)
+
+    mins, maxs = [], []
+    for mfi in u:
+        arr = u.array(mfi).to_numpy()
+        vals = arr[..., 0] if arr.ndim == 4 else arr[..., 0, 0]
+        mins.append(vals.min())
+        maxs.append(vals.max())
+    print("union min/max:", min(mins), max(maxs))
+finally:
+    amr.finalize()
 ```
 
 ### Quick correctness check (beginner friendly)

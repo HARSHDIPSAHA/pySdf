@@ -21,6 +21,9 @@ This project now separates the library into two folders:
   AMReX-native level-set generation. Creates and combines `MultiFab` fields
   directly (solver-ready output).
 
+- `SDFLibrary` output is always an AMReX `MultiFab`. Visualization scripts
+  live in `scripts/` and do not affect the library API.
+
 - `examples.py`  
   Minimal example showing how to build a composite geometry and generate a
   level-set field.
