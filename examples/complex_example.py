@@ -186,16 +186,24 @@ def main():
         # STEP 2: Create elongated sphere (capsule) using MultiFab
         # ============================================================
         print("\n" + "-" * 70)
-        # Create a capsule by union of two spheres (caps) and a box (cylinder)
-        # This approximates an elongated sphere
-        capsule_s1 = lib.sphere(center=(-0.3, 0.0, 0.0), radius=0.2)
-        capsule_s2 = lib.sphere(center=(0.3, 0.0, 0.0), radius=0.2)
-        capsule_box = lib.box(center=(0.0, 0.0, 0.0), half_size=(0.3, 0.2, 0.2))
+        # Create a capsule by union of two spheres (caps) and a round_box (smooth cylinder)
+        # This creates a clear pill/capsule shape - NOT a box
+        # Make spheres larger and use round_box for smoother, more pill-like appearance
+        capsule_radius = 0.18
+        capsule_length = 0.5  # Total length along x-axis
+        capsule_s1 = lib.sphere(center=(-capsule_length/2, 0.0, 0.0), radius=capsule_radius)
+        capsule_s2 = lib.sphere(center=(capsule_length/2, 0.0, 0.0), radius=capsule_radius)
+        # Use round_box with rounding to make it clearly a capsule, not a box
+        capsule_cylinder = lib.round_box(
+            center=(0.0, 0.0, 0.0), 
+            half_size=(capsule_length/2, capsule_radius*0.8, capsule_radius*0.8),
+            radius=capsule_radius*0.3  # Round the edges
+        )
         capsule_temp = lib.union(capsule_s1, capsule_s2)
-        capsule = lib.union(capsule_temp, capsule_box)
+        capsule = lib.union(capsule_temp, capsule_cylinder)
         
         print_step_info(2, "Elongated Sphere (Capsule)", capsule,
-                       "Capsule: union of 2 spheres + box (approximates elongated sphere)")
+                       "Capsule: union of 2 spheres(r=0.18) + round_box, pill shape along x-axis")
         if HAS_VIZ:
             full_array = gather_multifab_to_array(capsule, (n, n, n))
             save_3d_html(full_array, "complex_example", "step2", bounds)
