@@ -11,6 +11,7 @@ python examples/union_example.py
 python examples/intersection_example.py
 python examples/subtraction_example.py
 python examples/elongation_example.py
+python examples/complex_example.py
 ```
 
 ## Example Descriptions
@@ -111,6 +112,53 @@ Then: SDF_elongated = SDF_sphere(q)
 - Checks values at origin (should be inside, ~-0.25)
 - Checks values at elongation boundary (0.3, 0, 0)
 - Checks values beyond elongation (0.5, 0, 0)
+
+---
+
+### 5. Complex Example (`complex_example.py`)
+
+**Operation**: Combines all operations: Union, Elongation, Intersection, and Subtraction
+
+**Sequence of Operations**:
+1. **Base**: Create a box at origin
+2. **Elongation**: Create an elongated sphere (capsule) using geometry API
+3. **Union**: Combine base box with capsule
+4. **Intersection**: Round the top with a large sphere
+5. **Subtraction**: Create a cavity by subtracting a small box
+
+**Mathematical Formula**:
+```
+Step 1: base = box(center=(0,0,0), half_size=(0.3,0.3,0.3))
+Step 2: capsule = elongated_sphere(radius=0.2, elongation=(0.3,0,0))
+Step 3: union_result = union(base, capsule)
+Step 4: rounder = sphere(center=(0,0.2,0), radius=0.6)
+Step 5: rounded = intersect(union_result, rounder)
+Step 6: cutter = box(center=(0,-0.1,0), half_size=(0.15,0.15,0.15))
+Step 7: final = subtract(rounded, cutter)
+```
+
+**Expected Final Shape**:
+- A rounded box-like structure (from base box)
+- With a cylindrical/capsule extension on the x-axis (from union with elongated sphere)
+- Rounded top and upper edges (from intersection with large sphere)
+- A rectangular cavity/hole in the lower center (from subtraction)
+- Overall shape resembles a complex mechanical part or architectural element
+
+**Verification**:
+- Each step generates a separate 3D HTML visualization
+- Final shape should have:
+  - Negative values (inside the solid)
+  - Positive values (outside)
+  - Near-zero values (on the surface)
+  - Visible cavity/hole in the structure
+
+**Output Files**:
+- `complex_example_step1_3d.html`: Base box
+- `complex_example_step2_3d.html`: Elongated sphere (capsule)
+- `complex_example_step3_3d.html`: Union result (box + capsule)
+- `complex_example_step4_3d.html`: Intersection result (rounded)
+- `complex_example_step5_3d.html`: Subtraction result (with cavity)
+- `complex_example_final_3d.html`: Final complex shape
 
 ---
 
