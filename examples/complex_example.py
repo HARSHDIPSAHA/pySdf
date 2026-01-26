@@ -227,11 +227,12 @@ def main():
         # STEP 5: Subtraction - Create a cavity/hole
         # ============================================================
         print("\n" + "-" * 70)
-        # Use a smaller cutter positioned to create a cavity without removing everything
-        cutter = lib.box(center=(0.0, 0.0, 0.0), half_size=(0.1, 0.1, 0.1))  # Smaller, centered
+        # Use a very small cutter positioned to create a cavity without removing everything
+        # Position it slightly off-center to avoid removing the entire core
+        cutter = lib.box(center=(0.0, 0.05, 0.0), half_size=(0.08, 0.08, 0.08))  # Very small, slightly above center
         final = lib.subtract(rounded, cutter)
         print_step_info(5, "Subtraction (Cavity)", final,
-                       "Subtract small box(center=(0,0,0), half_size=0.1) to create internal cavity")
+                       "Subtract small box(center=(0,0.05,0), half_size=0.08) to create internal cavity")
         if HAS_VIZ:
             full_array = gather_multifab_to_array(final, (n, n, n))
             # Check if there's a valid isosurface before trying to extract it
@@ -239,6 +240,11 @@ def main():
                 save_3d_html(full_array, "complex_example", "step5", bounds)
             else:
                 print(f"  ⚠️  Step 5: No isosurface to visualize (all values are {'positive' if full_array.min() >= 0 else 'negative'})")
+                print(f"      This means the cutter removed all material. Skipping Step 5 visualization.")
+                # If subtraction removed everything, use rounded shape as final
+                if full_array.min() >= 0:
+                    print(f"      Note: Subtraction removed all material. Using rounded shape (step 4) as final result.")
+                    final = rounded
         
         # ============================================================
         # FINAL RESULT
@@ -269,6 +275,11 @@ def main():
             else:
                 print(f"  ⚠️  Final: No isosurface to visualize (all values are {'positive' if full_array.min() >= 0 else 'negative'})")
                 print(f"      Data range: [{full_array.min():.6f}, {full_array.max():.6f}]")
+                # If subtraction removed everything, use rounded shape
+                if full_array.min() >= 0:
+                    print(f"      Note: Subtraction removed all material. Final shape is the rounded shape from step 4.")
+                    rounded_array = gather_multifab_to_array(rounded, (n, n, n))
+                    save_3d_html(rounded_array, "complex_example", "final", bounds)
         
         print("\n" + "=" * 70)
         print("✅ COMPLEX EXAMPLE COMPLETE")
