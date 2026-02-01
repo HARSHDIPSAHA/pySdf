@@ -1,5 +1,5 @@
 ```bash
-# Basic installation (numpy only)
+# Basic installation
 pip install -e .
 
 # With visualization support (plotly, matplotlib, scikit-image)
@@ -12,7 +12,7 @@ The `pip install -e .` command installs:
 
 - **`sdf2d`**: 2D signed distance function library
 - **`sdf3d`**: 3D signed distance function library
-- **`sdf_lib.py`**: Core SDF primitive implementations
+- **`sdf_lib.py`**: Core SDF primitive implementations in numpy
 
 ## Package Structure
 
