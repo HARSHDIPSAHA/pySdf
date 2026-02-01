@@ -129,10 +129,14 @@ def save_levelset_html(phi, bounds=(-1, 1), filename="levelset.html"):
             vertex_face_count[face] += 1
         
         # Keep vertices that appear in at least 2 faces (removes tiny fragments)
-        min_faces = max(2, int(len(faces) / len(verts) * 0.1))  # Adaptive threshold
+        # Adaptive threshold based on the mesh density
+        MIN_FACE_RATIO = 0.1  # Minimum ratio of faces per vertex
+        min_faces = max(2, int(len(faces) / len(verts) * MIN_FACE_RATIO))
         valid_vertices = vertex_face_count >= min_faces
         
-        if valid_vertices.sum() > len(verts) * 0.3:  # Only filter if we keep >30% of vertices
+        # Only apply filtering if we retain a significant portion of vertices (>30%)
+        MIN_VERTEX_RETENTION = 0.3  # Keep at least 30% of original vertices
+        if valid_vertices.sum() > len(verts) * MIN_VERTEX_RETENTION:
             # Remap vertex indices
             vertex_map = np.full(len(verts), -1, dtype=int)
             new_idx = 0

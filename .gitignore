@@ -51,9 +51,3 @@ plotfiles/
 docs/_build/
 docs/_static/
 docs/_templates/
-
-# Distribution / packaging
-.Python
-*.so
-*.dylib
-*.dll
