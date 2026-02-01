@@ -1,5 +1,6 @@
 """Dynamic module loader for sdf2d package."""
 import importlib.util
+import sys
 from pathlib import Path
 
 
@@ -17,6 +18,10 @@ def load_module(module_name, rel_path):
     base = Path(__file__).resolve().parent.parent
     target = base / rel_path
     
+    # Ensure base is in sys.path so that 'import sdf_lib' works in loaded modules
+    if str(base) not in sys.path:
+        sys.path.insert(0, str(base))
+
     if not target.exists():
         raise ImportError(f"Cannot find module file: {target}")
     
