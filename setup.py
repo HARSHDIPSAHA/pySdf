@@ -17,7 +17,8 @@ setup(
     url="https://github.com/yourusername/sdf-library",
     # Using this over setuptools.find_packages() because previously 2d and 3d folders were
     # being excluded purely by an edge case. This is safer.
-    packages=["sdf2d", "sdf3d", "sdf_lib", "sdf_stl"],
+    packages=["sdf2d", "sdf3d", "sdf_stl"],
+    py_modules=["sdf_lib"],
     python_requires=">=3.8",
     install_requires=[
         "numpy>=1.20.0",

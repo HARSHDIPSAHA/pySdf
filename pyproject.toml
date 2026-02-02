@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=1.20.0",
-    "amrex>=23.0",
+    "amrex @ git+https://github.com/AMReX-Codes/pyamrex.git",
 ]
 
 [project.optional-dependencies]
