@@ -6,6 +6,8 @@ pip install -e .
 pip install -e .[viz]
 ```
 
+Installing amrex may take more than two hours as it builds from source.
+
 ## What Gets Installed
 
 The `pip install -e .` command installs:
