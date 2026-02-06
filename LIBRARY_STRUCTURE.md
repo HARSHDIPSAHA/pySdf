@@ -40,8 +40,8 @@ In order of dependency:
 # `2d/` contents
 In order of dependency:
 
-- `sdf_lib.py`  
-  Numpy implementations of functions for vector math and SDF operations in 2D (e.g., vector creation, dot product, length).
+- `sdf_lib.py` (top-level, shared with `3d/`, not in `2d/` folder)  
+  Numpy implementations of functions for vector math and SDF operations (e.g., vector creation, dot product, length) shared by both 2D and 3D; the 2D modules import this top-level module rather than a local copy.
 
 - `geometry_2d.py`  
   Core 2D geometry classes (Circle, Box, Polygon, etc.) and boolean operations.
