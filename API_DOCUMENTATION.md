@@ -795,6 +795,101 @@ finally:
 | Function | Parameters | Returns | Description |
 |----------|-----------|---------|-------------|
 | `sample_levelset` | `geometry, bounds, resolution` | `ndarray` | Sample geometry to NumPy array |
+| `save_levelset_html` | `phi, bounds, filename` | `None` | Save 3D level set as interactive HTML |
+| `save_levelset_html_2d` | `phi, bounds, filename` | `None` | Save 2D level set as interactive HTML |
+
+---
+
+## Visualization Functions
+
+### save_levelset_html (3D)
+
+Generate an interactive 3D HTML visualization of the zero level set using plotly and scikit-image.
+
+**Signature:**
+```python
+save_levelset_html(phi, bounds=(-1, 1), filename="levelset.html")
+```
+
+**Parameters:**
+- `phi` (ndarray): 3D numpy array containing the signed distance field values. Shape should be (nx, ny, nz).
+- `bounds` (tuple or float): Physical domain bounds. Can be:
+  - A single tuple `(lo, hi)` for uniform bounds in all dimensions
+  - A tuple of tuples `((xlo, xhi), (ylo, yhi), (zlo, zhi))` for per-axis bounds
+  - Default is `(-1, 1)` for all axes.
+- `filename` (str): Output HTML file path. Parent directories will be created if they don't exist.
+
+**Example:**
+```python
+from sdf3d import Sphere, sample_levelset, save_levelset_html
+
+# Create geometry
+sphere = Sphere(0.3)
+
+# Sample level set
+bounds = ((-1, 1), (-1, 1), (-1, 1))
+res = (64, 64, 64)
+phi = sample_levelset(sphere, bounds, res)
+
+# Save visualization - as simple as this!
+save_levelset_html(
+    phi,
+    bounds=(-1, 1),
+    filename="sphere.html"
+)
+```
+
+**Requirements:**
+- `plotly>=5.0.0`
+- `scikit-image>=0.19.0`
+- Install with: `pip install -e .[viz]`
+
+### save_levelset_html_2d (2D)
+
+Generate an interactive 2D HTML visualization showing the signed distance field as a heatmap with contours.
+
+**Signature:**
+```python
+save_levelset_html_2d(phi, bounds=(-1, 1), filename="levelset_2d.html")
+```
+
+**Parameters:**
+- `phi` (ndarray): 2D numpy array containing the signed distance field values. Shape should be (nx, ny).
+- `bounds` (tuple or float): Physical domain bounds. Can be:
+  - A single tuple `(lo, hi)` for uniform bounds in both dimensions
+  - A tuple of tuples `((xlo, xhi), (ylo, yhi))` for per-axis bounds
+  - Default is `(-1, 1)` for both axes.
+- `filename` (str): Output HTML file path. Parent directories will be created if they don't exist.
+
+**Example:**
+```python
+from sdf2d import Circle, sample_levelset_2d, save_levelset_html_2d
+
+# Create geometry
+circle = Circle(0.3)
+
+# Sample level set
+bounds = ((-1, 1), (-1, 1))
+res = (256, 256)
+phi = sample_levelset_2d(circle, bounds, res)
+
+# Save visualization - simple!
+save_levelset_html_2d(
+    phi,
+    bounds=(-1, 1),
+    filename="circle.html"
+)
+```
+
+**Requirements:**
+- `plotly>=5.0.0`
+- Install with: `pip install -e .[viz]`
+
+**Features:**
+- Diverging colormap (red=positive, blue=negative, white=zero)
+- Contour lines for level set visualization
+- Bold zero level set contour (the shape boundary)
+- Interactive hover to inspect values
 
 ---
 

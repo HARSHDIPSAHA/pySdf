@@ -1,9 +1,19 @@
 """2D geometry primitives and operations."""
+
 from ._loader import load_module
 
 # Load implementations
 _geom = load_module("sdf2d._geom", "2d/geometry_2d.py")
-_amrex = load_module("sdf2d._amrex", "2d/amrex_sdf_2d.py")
+
+# Try to load AMReX-dependent modules, but make them optional
+try:
+    _amrex = load_module("sdf2d._amrex", "2d/amrex_sdf_2d.py")
+    SDFLibrary2D = _amrex.SDFLibrary2D
+    _HAS_AMREX = True
+except ImportError:
+    # AMReX not available, SDFLibrary2D will not be available
+    SDFLibrary2D = None
+    _HAS_AMREX = False
 
 # Base class
 Geometry2D = _geom.Geometry2D
@@ -70,13 +80,9 @@ Union2D = _geom.Union2D
 Intersection2D = _geom.Intersection2D
 Subtraction2D = _geom.Subtraction2D
 
-# AMReX integration
-SDFLibrary2D = _amrex.SDFLibrary2D
-
 __all__ = [
     # Base
     "Geometry2D",
-    
     # Basic shapes
     "Circle",
     "Box2D",
@@ -86,33 +92,27 @@ __all__ = [
     "Rhombus2D",
     "Trapezoid2D",
     "Parallelogram2D",
-    
     # Triangles
     "EquilateralTriangle2D",
     "TriangleIsosceles2D",
     "Triangle2D",
-    
     # Capsules
     "UnevenCapsule2D",
-    
     # Regular polygons
     "Pentagon2D",
     "Hexagon2D",
     "Octogon2D",
     "NGon2D",
-    
     # Stars
     "Hexagram2D",
     "Star5",
     "Star",
-    
     # Arcs and sectors
     "Pie2D",
     "CutDisk2D",
     "Arc2D",
     "Ring2D",
     "Horseshoe2D",
-    
     # Special shapes
     "Vesica2D",
     "Moon2D",
@@ -121,7 +121,6 @@ __all__ = [
     "Heart2D",
     "Cross2D",
     "RoundedX2D",
-    
     # Complex shapes
     "Polygon2D",
     "Ellipse2D",
@@ -133,12 +132,11 @@ __all__ = [
     "Stairs2D",
     "QuadraticCircle2D",
     "Hyperbola2D",
-    
     # Boolean operations
     "Union2D",
     "Intersection2D",
     "Subtraction2D",
-    
-    # AMReX
-    "SDFLibrary2D",
 ]
+
+if _HAS_AMREX:
+    __all__.append("SDFLibrary2D")

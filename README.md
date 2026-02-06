@@ -52,13 +52,31 @@ For library usage in Python:
 
 **3D API** (import via `sdf3d`):
 ```python
-from sdf3d import Sphere, sample_levelset, SDFLibrary
+from sdf3d import Sphere, sample_levelset, save_levelset_html
 ```
 
 **2D API** (import via `sdf2d`):
 ```python
-from sdf2d import Circle, Box2D, sample_levelset_2d, SDFLibrary2D
+from sdf2d import Circle, Box2D, sample_levelset_2d, save_levelset_html_2d
 ```
+
+### Quick Example: Simple Visualization
+
+```python
+from sdf3d import Sphere, sample_levelset, save_levelset_html
+
+# Create a sphere
+sphere = Sphere(0.3)
+
+# Sample the level set
+bounds = ((-1, 1), (-1, 1), (-1, 1))
+phi = sample_levelset(sphere, bounds, (64, 64, 64))
+
+# Save as interactive HTML visualization - that's it!
+save_levelset_html(phi, bounds=(-1, 1), filename="sphere.html")
+```
+
+Open `sphere.html` in your browser to see an interactive 3D visualization of the zero level set.
 
 If you want AMReX-native output (MultiFab instead of NumPy), use
 `SDFLibrary`:
