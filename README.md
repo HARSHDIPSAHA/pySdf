@@ -41,6 +41,7 @@ After installation, both **2D** (`sdf2d`) and **3D** (`sdf3d`) APIs are availabl
 - `sdf_lib.py`: numpy implementations of the SDF primitives and operators.
 - `scripts/`: visualization and plotfile utilities (optional).
 - `outputs/`: generated images (not required for the library).
+- `sdf3d/complex`: contains complex 3D geometries like Rocket assembly and Nato Stanag fragment.
 
 ## Run
 
