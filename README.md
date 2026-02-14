@@ -9,6 +9,9 @@ boxes, distribute those boxes, and store the SDF values in a `MultiFab`.
 formulas are referenced from
 [iquilezles.org](https://iquilezles.org/articles/distfunctions/).
 
+
+<img width="746" height="636" alt="Screenshot 2026-02-03 191159" src="https://github.com/user-attachments/assets/1ca854f8-edfe-4094-8316-355e621f5056" />
+
 ## Installation
 
 See **[INSTALLATION.md](INSTALLATION.md)** for detailed installation instructions.
