@@ -12,18 +12,9 @@ Formulas are adapted from Inigo Quilez's distance function reference:
 https://iquilezles.org/articles/distfunctions/
 """
 
-from __future__ import annotations
-
 import numpy as np
-import numpy.typing as npt
 
 from _sdf_common import *  # noqa: F401, F403  — re-export shared helpers
-from _sdf_common import _F  # explicit import so _F is available for annotations
-
-# ---------------------------------------------------------------------------
-# Type alias (re-declared so type-checkers see it in this module's namespace)
-# ---------------------------------------------------------------------------
-_F = npt.NDArray[np.floating]
 
 
 # ===========================================================================

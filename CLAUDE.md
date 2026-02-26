@@ -1,16 +1,11 @@
-# CLAUDE.md — Project context for Claude Code
-
-## What this project is
-
 `pySdf` is a Python library of signed distance functions (SDFs) for 2D and 3D geometry.
-It has two modes of operation:
 
+It has two modes of operation:
 - **Pure numpy** (no external dependencies beyond numpy/scipy): evaluate SDFs on grids
   using `sample_levelset_2d` / `sample_levelset_3d`.
 - **AMReX** (optional): fill `MultiFab` grids via `SDFLibrary2D` / `SDFLibrary3D`.
 
 ## Repository layout
-
 ```
 pySdf/
 ├── sdf_lib.py            # All SDF math — pure numpy, no AMReX
@@ -38,20 +33,17 @@ pySdf/
 ```
 
 ## SDF sign convention
-
 - `phi < 0` — inside the solid
 - `phi = 0` — on the surface
 - `phi > 0` — outside the solid
 
 ## Key naming conventions
-
 - 3D geometry: `Sphere3D`, `Box3D`, `Union3D`, `Intersection3D`, `Subtraction3D`
 - 2D geometry: `Circle2D`, `Box2D`, `Union2D`, `Intersection2D`, `Subtraction2D`
 - Grid functions: `sample_levelset_2d` / `sample_levelset_3d`
 - AMReX classes: `SDFLibrary2D` / `SDFLibrary3D`
 
 ## Running tests
-
 ```bash
 pytest tests/        # 215 passed, 1 skipped (test_amrex.py without pyAMReX)
 ```
@@ -60,7 +52,6 @@ All tests pass without AMReX. `tests/test_amrex.py` skips automatically via
 `pytest.importorskip`.
 
 ## Running the gallery scripts
-
 ```bash
 python scripts/gallery_2d.py          # saves gallery_2d.png
 python scripts/gallery_3d.py          # saves gallery_3d.png
@@ -68,7 +59,6 @@ python scripts/gallery_3d.py --res 48 # faster draft render
 ```
 
 ## AMReX installation
-
 pyAMReX is **not on PyPI**. Install via conda:
 
 ```bash

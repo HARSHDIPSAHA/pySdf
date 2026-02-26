@@ -57,7 +57,7 @@ def sdSegment2D(p: _F, a: _F, b: _F) -> _F:
     return length(pa - ba * h[..., None])
 
 
-def sdRhombus2D(p: _F, b: _F) -> _F:
+def sdRhombus2D(p: _F, b: _F) -> _F: # TODO: Strange white lines
     """2-D rhombus with half-extents *b*."""
     p = np.abs(p)
     h = clamp((-2.0 * dot2(p) + dot2(b)) / dot2(b), -1.0, 1.0)
@@ -65,7 +65,7 @@ def sdRhombus2D(p: _F, b: _F) -> _F:
     return d * np.sign(p[..., 0] * b[1] + p[..., 1] * b[0] - b[0] * b[1])
 
 
-def sdTrapezoid2D(p: _F, r1: float, r2: float, he: float) -> _F:
+def sdTrapezoid2D(p: _F, r1: float, r2: float, he: float) -> _F: # TODO: Looks incomplete in the render.
     """2-D isosceles trapezoid with base radii *r1*/*r2* and height *he*."""
     k1 = vec2(r2, he)
     k2 = vec2(r2 - r1, 2.0 * he)
@@ -87,7 +87,7 @@ def sdParallelogram2D(p: _F, wi: float, he: float, sk: float) -> _F:
     return sdPolygon2D(p, v)
 
 
-def sdEquilateralTriangle2D(p: _F, r: float) -> _F:
+def sdEquilateralTriangle2D(p: _F, r: float) -> _F: # TODO: Upside down blue-filled triangle instead of a normal white-bordered one.
     """2-D equilateral triangle with circumradius *r*."""
     k  = np.array([np.sqrt(3.0), -1.0])
     px = np.abs(p[..., 0]) - r
@@ -98,7 +98,7 @@ def sdEquilateralTriangle2D(p: _F, r: float) -> _F:
     return -length(vec2(px, py)) * np.sign(py)
 
 
-def sdTriangleIsosceles2D(p: _F, q: _F) -> _F:
+def sdTriangleIsosceles2D(p: _F, q: _F) -> _F: # TODO: Strange white orbs near the top of the triangle.
     """2-D isosceles triangle; *q* = ``(half_base, height)``."""
     px = np.abs(p[..., 0])
     py = p[..., 1]
@@ -178,7 +178,7 @@ def sdOctagon2D(p: _F, r: float) -> _F:
     return length(vec2(px, py)) * np.sign(py)
 
 
-def sdHexagram2D(p: _F, r: float) -> _F:
+def sdHexagram2D(p: _F, r: float) -> _F: # TODO: Top and bottom looks cropped.
     """2-D hexagram (6-pointed star) with circumradius *r*."""
     k  = np.array([-0.5, 0.8660254038, 0.5773502692, 1.7320508076])
     px = np.abs(p[..., 0])
@@ -190,7 +190,7 @@ def sdHexagram2D(p: _F, r: float) -> _F:
     return length(vec2(px, py)) * np.sign(py)
 
 
-def sdStar5(p: _F, r: float, rf: float) -> _F:
+def sdStar5(p: _F, r: float, rf: float) -> _F: # TODO: Remove this and just use sdStar with n=5 and m=rf, because this doesn't even work.
     """2-D 5-pointed star; *r* outer radius, *rf* inner factor (0–1)."""
     k1 = np.array([0.809016994375, -0.587785252292])
     k2 = np.array([-k1[0], k1[1]])
@@ -258,7 +258,7 @@ def sdRing2D(p: _F, r1: float, r2: float) -> _F:
     return np.maximum(r1 - l, l - r2)
 
 
-def sdHorseshoe2D(p: _F, c: _F, r: float, w: _F) -> _F:
+def sdHorseshoe2D(p: _F, c: _F, r: float, w: _F) -> _F: # TODO: Just a straight line; not a horse-shoe.
     """2-D horseshoe; *c* = ``(sin, cos)`` of gap half-angle, *r* radius, *w* arm widths."""
     px = np.abs(p[..., 0]);  py = p[..., 1]
     l  = length(p)
@@ -292,7 +292,7 @@ def sdMoon2D(p: _F, d: float, ra: float, rb: float) -> _F:
                     np.maximum(length(p) - ra, -(length(vec2(p[..., 0] - d, py)) - rb)))
 
 
-def sdRoundedCross2D(p: _F, h: float) -> _F:
+def sdRoundedCross2D(p: _F, h: float) -> _F: # TODO: Looks like nothing.
     """2-D rounded cross of size *h*."""
     k  = 0.5 * (h + 1.0 / h)
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
@@ -304,7 +304,7 @@ def sdRoundedCross2D(p: _F, h: float) -> _F:
     return np.minimum(r1, r2)
 
 
-def sdEgg2D(p: _F, ra: float, rb: float) -> _F:
+def sdEgg2D(p: _F, ra: float, rb: float) -> _F: # TODO: The egg is "split" apart in the middle.
     """2-D egg; *ra* large radius, *rb* small radius."""
     k  = np.sqrt(3.0)
     px = np.abs(p[..., 0]);  py = p[..., 1]
@@ -315,16 +315,22 @@ def sdEgg2D(p: _F, ra: float, rb: float) -> _F:
                     length(vec2(px + r, py)) - 2.0 * r) - rb)
 
 
-def sdHeart2D(p: _F) -> _F:
+def sdHeart2D(p: _F) -> _F: # TODO: The commented out code looked like nothing, and the current code renders cropped out.
     """2-D heart shape (unit-scale)."""
     px = np.abs(p[..., 0]);  py = p[..., 1]
     c  = px + py > 1.0
-    qx = np.where(c, px - 0.25, px)
-    qy = np.where(c, py - 0.75, py)
-    return length(vec2(qx, qy)) - np.where(c, np.sqrt(2.0) / 4.0, 1.0)
+    # qx = np.where(c, px - 0.25, px)
+    # qy = np.where(c, py - 0.75, py)
+    # return length(vec2(qx, qy)) - np.where(c, np.sqrt(2.0) / 4.0, 1.0)
+    if c.any():
+        return length(vec2(px - 0.25, py - 0.75)) - np.sqrt(2.0) / 4.0
+    return np.sqrt(min(
+        dot2(p - vec2(0.0, 1.0)),
+        dot2(p - 0.5 * np.maximum(px + py, 0.0)),
+    )) * np.sign(px - py)
 
 
-def sdCross2D(p: _F, b: _F, r: float) -> _F:
+def sdCross2D(p: _F, b: _F, r: float) -> _F: # TODO: Just looks like a box.
     """2-D plus-sign cross; *b* = ``(half_arm_len, half_arm_width)``, *r* rounding."""
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
     c  = px > py
@@ -362,7 +368,7 @@ def sdPolygon2D(p: _F, v: _F) -> _F:
     return s * np.sqrt(d)
 
 
-def sdEllipse2D(p: _F, ab: _F) -> _F:
+def sdEllipse2D(p: _F, ab: _F) -> _F: # TODO: Looks like anything but.
     """2-D ellipse with semi-axes *ab* = ``(a, b)``."""
     px   = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
     c    = px > py
@@ -388,7 +394,7 @@ def sdEllipse2D(p: _F, ab: _F) -> _F:
     return length(vec2(px_n - rx, py_n - ry)) * np.sign(py_n - ry)
 
 
-def sdParabola2D(p: _F, k: float) -> _F:
+def sdParabola2D(p: _F, k: float) -> _F: # TODO: Looks like anything but.
     """2-D parabola ``y = k·x²``; *k* is the curvature."""
     px = np.abs(p[..., 0]);  py = p[..., 1]
     ik = 1.0 / k
@@ -439,7 +445,7 @@ def sdBezier2D(p: _F, A: _F, B: _F, C: _F) -> _F:
     return length(q3)
 
 
-def sdBlobbyCross2D(p: _F, he: float) -> _F:
+def sdBlobbyCross2D(p: _F, he: float) -> _F: # TODO: Looks like anything but.
     """2-D blobby cross of size *he*."""
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
     px = np.where(py > px, py, px);  py = np.where(py > px, px, py)
@@ -450,7 +456,7 @@ def sdBlobbyCross2D(p: _F, he: float) -> _F:
     return 0.5 * (np.sqrt(d) - he)
 
 
-def sdTunnel2D(p: _F, wh: _F) -> _F:
+def sdTunnel2D(p: _F, wh: _F) -> _F: # TODO: Looks like anything but.
     """2-D tunnel/arch; *wh* = ``(half_width, height)``."""
     px = np.abs(p[..., 0]);  py = p[..., 1]
     px = px - wh[0]
@@ -458,7 +464,7 @@ def sdTunnel2D(p: _F, wh: _F) -> _F:
     return length(q) - 0.5 * wh[0]
 
 
-def sdStairs2D(p: _F, wh: _F, n: int) -> _F:
+def sdStairs2D(p: _F, wh: _F, n: int) -> _F: # TODO: Looks like anything but.
     """2-D staircase; *wh* = ``(step_width, step_height)``, *n* steps."""
     ba  = wh * n
     d   = np.minimum(
@@ -473,7 +479,7 @@ def sdStairs2D(p: _F, wh: _F, n: int) -> _F:
     return np.sqrt(np.maximum(d, 0.0)) * s
 
 
-def sdQuadraticCircle2D(p: _F) -> _F:
+def sdQuadraticCircle2D(p: _F) -> _F: # TODO: Looks like anything but.
     """2-D quadratic-circle approximation (unit-scale)."""
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
     c  = py > px
@@ -490,7 +496,7 @@ def sdQuadraticCircle2D(p: _F) -> _F:
     return d * np.sign(b - 1.0 - t * t)
 
 
-def sdHyperbola2D(p: _F, k: float, he: float) -> _F:
+def sdHyperbola2D(p: _F, k: float, he: float) -> _F: # TODO: Looks like anything but.
     """2-D hyperbola; *k* curvature, *he* half-height."""
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
     kv = vec2(k, 1.0)

@@ -10,13 +10,14 @@ formulas are referenced from
 ⚠️ TODO list (in order of when to tackle):
 - Split tests/test_sdf_lib.py into 2D and 3D test files, then finally delete sdf_lib.py and run verification, and then update CLAUDE.md.
 - Rename `sdf_lib.py` in both folders to something else, since it's not really a library but just a collection of formulas. Maybe `sdf_formulas.py` or `sdf_primitives.py`?
-- EqTriangle, TriangleIsosceles, Hexagram, RoundedCross, Egg, Heart, Cross, Ellipse, Parabola, Stairs, QuadraticCircle, Hyperbola; these do not render properly in the gallery, and many of their formulas had to deviate from the original iquilez formulas to avoid NaNs or other issues.
-- Use agent to check all formulas against the website.
-- Use code review agent for general problems.
+- Ask agent to go through the comments placed in sdf_lib.py inside sdf2d and check the formulas against the original iquilez formulas wherever mentioned.
+- QOL: currently the cells in the 3D renders have a lot of empty space; expand each render inside its cell, without affecting its shape.
+- Use code review agent for general problems. Ask it to ignore backwards compatibility for the sake of cleaniless.
 - Ask agent to create a linear walkthrough of the library in WALKTHROUGH.md.
 - Create new powerpoint
 - Add this project to pypi?
 - Merge to main.
+- Consult with others to see if the boilerplate in geometry.py can be refactored out by maybe absorbing it into sdf_lib?
 - Add feature to convert stls to sdfs.
 - Add mesh hierarchy feature.
 

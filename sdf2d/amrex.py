@@ -5,8 +5,6 @@ It is intentionally kept separate so that the rest of ``sdf2d`` works
 without AMReX installed.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
