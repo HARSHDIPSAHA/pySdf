@@ -12,24 +12,68 @@ formulas are referenced from
 
 <img width="746" height="636" alt="Screenshot 2026-02-03 191159" src="https://github.com/user-attachments/assets/1ca854f8-edfe-4094-8316-355e621f5056" />
 
+⚠️ WARNING: This branch is a work in progress and mostly vibe-coded. Todolist:
+- EqTriangle, TriangleIsosceles, Hexagram, RoundedCross, Egg, Heart, Cross, Ellipse, Parabola, Stairs, QuadraticCircle, Hyperbola; these do not render properly in the gallery, and many of their formulas had to deviate from the original iquilez formulas to avoid NaNs or other issues.
+- Some of the renders in gallery_3d render as elongated spheroids instead of spheres.
+- The scripts running in the examples folder do not work anymore; needs updating.
+
 ## Installation
 
-See **[INSTALLATION.md](INSTALLATION.md)** for detailed installation instructions.
+### Core library (NumPy only — no AMReX required)
 
-**Quick install:**
 ```bash
-# Basic
 pip install -e .
-
-# With visualization (plotly, matplotlib, scikit-image)
-pip install -e .[viz]
-
-# With AMReX support
-pip install -e .[amrex]
-
-# All features
-pip install -e .[viz,amrex]
 ```
+
+This gives you full access to `sdf2d`, `sdf3d`, `sdf_lib`, and all tests.
+
+### With visualization extras (galleries, scikit-image for marching cubes)
+
+```bash
+pip install -e .[viz]
+# or just: pip install matplotlib scikit-image
+```
+
+### With pyAMReX (optional — for MultiFab/parallel grid output)
+
+**pyAMReX is not on PyPI.** Choose one of the methods below.
+
+#### Option A — conda (CPU only, easiest)
+
+```bash
+conda create -n pyamrex -c conda-forge pyamrex
+conda activate pyamrex
+pip install -e .
+```
+
+#### Option B — build from source (GPU / MPI / custom dimensions)
+
+```bash
+# Prerequisites
+python3 -m pip install -U pip build packaging setuptools wheel pytest
+git clone https://github.com/AMReX-Codes/pyamrex.git $HOME/src/pyamrex
+cd $HOME/src/pyamrex
+
+# Configure — build all three space dimensions in one go
+cmake -S . -B build -DAMReX_SPACEDIM="1;2;3"
+cmake --build build -j 4 --target pip_install
+
+# Optional flags
+#   -DAMReX_GPU_BACKEND=CUDA   (or HIP, SYCL)
+#   -DAMReX_MPI=ON
+#   -DAMReX_OMP=ON
+#   -DCMAKE_BUILD_TYPE=Release
+```
+
+> **Dimension constraint:** Only one space dimension can be imported per Python
+> process (`amrex.space2d` *or* `amrex.space3d`, not both simultaneously).
+
+See the full guides:
+[conda install](https://pyamrex.readthedocs.io/en/latest/install/users.html) ·
+[cmake build](https://pyamrex.readthedocs.io/en/latest/install/cmake.html)
+
+> **Note:** The `[amrex]` extra in `setup.py` is a documentation placeholder —
+> pyAMReX must be installed through conda or built from source, not pip.
 
 After installation, both **2D** (`sdf2d`) and **3D** (`sdf3d`) APIs are available.
 
@@ -41,35 +85,58 @@ After installation, both **2D** (`sdf2d`) and **3D** (`sdf3d`) APIs are availabl
 
 ## Files
 
-- `sdf_lib.py`: numpy implementations of the SDF primitives and operators.
+- `sdf_lib.py`: numpy implementations of all SDF primitives and operators.
+- `sdf2d/`: 2D geometry package (`Circle2D`, `Box2D`, `Hexagon2D`, …).
+- `sdf3d/`: 3D geometry package (`Sphere3D`, `Box3D`, `Torus3D`, …).
+- `sdf3d/examples/`: high-level assemblies (`NATOFragment`, `RocketAssembly`).
+- `tests/`: pytest suite — no AMReX required.
 - `scripts/`: visualization and plotfile utilities (optional).
-- `outputs/`: generated images (not required for the library).
-- `sdf3d/complex`: contains complex 3D geometries like Rocket assembly and Nato Stanag fragment.
+- `gallery_2d.png`, `gallery_3d.png`: pre-rendered shape galleries (see below).
 
-## Run
+## Render galleries
+
+Generate a single-page PNG showing every shape in the library:
 
 ```bash
-python scripts/render_all_sdfs.py
+# All 43 sdf2d shapes (requires matplotlib only)
+python scripts/gallery_2d.py --out gallery_2d.png
+
+# All sdf_lib 3D primitives (requires matplotlib + scikit-image)
+python scripts/gallery_3d.py --out gallery_3d.png --res 64
 ```
 
-For library usage in Python:
+Both scripts run without AMReX.
+
+### 2D shape gallery (`sdf2d` — 43 shapes)
+
+![sdf2d gallery](gallery_2d.png)
+
+_Blue = inside (φ < 0), red = outside (φ > 0), white contour = surface (φ = 0)._
+
+### 3D shape gallery (`sdf_lib` 3D primitives)
+
+![sdf_lib 3D gallery](gallery_3d.png)
+
+_Gold isosurfaces extracted from 3D SDF grids using marching cubes._
+
+## Library usage in Python
 
 **3D API** (import via `sdf3d`):
 ```python
-from sdf3d import Sphere, sample_levelset, SDFLibrary
+from sdf3d import Sphere3D, sample_levelset_3d, SDFLibrary3D
 ```
 
 **2D API** (import via `sdf2d`):
 ```python
-from sdf2d import Circle, Box2D, sample_levelset_2d, SDFLibrary2D
+from sdf2d import Circle2D, Box2D, sample_levelset_2d, SDFLibrary2D
 ```
 
 If you want AMReX-native output (MultiFab instead of NumPy), use
-`SDFLibrary`:
+`SDFLibrary3D`:
 
 ```python
 import amrex.space3d as amr
-from sdf3d import SDFLibrary
+from sdf3d import SDFLibrary3D
 
 # Always initialize/finalize AMReX in scripts
 amr.initialize([])
@@ -82,7 +149,7 @@ ba = amr.BoxArray(domain)
 ba.max_size(32)
 dm = amr.DistributionMapping(ba)
 
-lib = SDFLibrary(geom, ba, dm)
+lib = SDFLibrary3D(geom, ba, dm)
 mf = lib.sphere(center=(0.0, 0.0, 0.0), radius=0.3)
 
 amr.finalize()
@@ -92,7 +159,7 @@ amr.finalize()
 
 ```python
 import amrex.space3d as amr
-from sdf3d import SDFLibrary
+from sdf3d import SDFLibrary3D
 
 amr.initialize([])
 try:
@@ -103,7 +170,7 @@ try:
     ba.max_size(32)
     dm = amr.DistributionMapping(ba)
 
-    lib = SDFLibrary(geom, ba, dm)
+    lib = SDFLibrary3D(geom, ba, dm)
     a = lib.sphere(center=(-0.3, 0.0, 0.0), radius=0.25)
     b = lib.sphere(center=(0.3, 0.0, 0.0), radius=0.25)
     u = lib.union(a, b)
@@ -126,13 +193,13 @@ Run this small script to verify the SDF output for a sphere:
 ```bash
 python - << "PY"
 import numpy as np
-from sdf3d import Sphere, sample_levelset
+from sdf3d import Sphere3D, sample_levelset_3d
 
-sphere = Sphere(0.3)
+sphere = Sphere3D(0.3)
 bounds = ((-1.0, 1.0), (-1.0, 1.0), (-1.0, 1.0))
 res = (64, 64, 64)
 
-phi = sample_levelset(sphere, bounds, res)
+phi = sample_levelset_3d(sphere, bounds, res)
 
 center = tuple(r // 2 for r in res)
 print("phi(center) ~ -0.3:", phi[center])
@@ -151,81 +218,35 @@ the grid is cell-centered, so the "center cell" is slightly offset from
 `(0, 0, 0)`. If you want a value closer to `-0.3`, use an odd resolution
 such as `res = (65, 65, 65)`.
 
-### 3D volume renders (yt)
-
-This uses yt volume rendering to make 3D snapshots and saves them to
-`outputs/vis3d/`:
+### Render a single AMReX plotfile (requires pyAMReX + yt)
 
 ```bash
-python scripts/render_all_sdfs_3d.py
+python scripts/render_surface_from_plotfile.py plotfiles/sdSphere --out out.png
 ```
 
-Notes:
-- Requires `yt` (`pip install yt`).
-- Rendering all shapes can take a while; reduce `n` in `render_all_sdfs_3d.py`
-  if you need faster previews.
+## Color guide
 
-### 3D renders from AMReX plotfiles (yt)
+**2D gallery** uses a diverging colormap: blue = inside (φ < 0), red = outside (φ > 0), white contour = surface (φ = 0).
 
-If you have AMReX plotfiles (e.g., `plt00000/`), yt can load them directly
-and you can volume render or slice them. Example:
+**3D gallery** shows the φ = 0 isosurface extracted with marching cubes and rendered with diffuse shading.
 
-```python
-import yt
+## How pyAMReX helps (optional path)
 
-ds = yt.load("./plt00000/")
-sc = yt.create_scene(ds, field="sdf")
-sc.save("rendering.png")
-```
+The library has two independent evaluation paths:
 
-This is useful when you want to render the full AMReX dataset (including
-refinement) instead of the uniform grid used in `render_all_sdfs_3d.py`.
+| Path | Requires | Use case |
+|------|----------|----------|
+| **NumPy** | `numpy` only | geometry design, visualization, testing |
+| **AMReX** | pyAMReX via conda | parallel grid output for solvers |
 
-## Output
+When AMReX is installed, `SDFLibrary2D`/`SDFLibrary3D` use the same numpy SDF
+formulas but wrap them in AMReX `MultiFab` infrastructure for parallel execution.
 
-Generated images are stored under `outputs/`:
-
-- `outputs/vis/<name>.png` (2D slices)
-- `outputs/vis3d/<name>.png` (3D renders)
-
-### Plotfiles + 3D snapshots (yt)
-
-This workflow writes AMReX plotfiles for each SDF and then renders each
-plotfile to a PNG:
-
-```bash
-python scripts/render_all_sdfs_plotfiles.py
-```
-
-Outputs:
-- `plotfiles/<name>/` (AMReX plotfiles)
-- `outputs/vis3d_plotfile/<name>.png` (renders)
-
-Notes:
-- Requires pyAMReX built in 3D and `yt` installed.
-
-## Color guide for `outputs/vis` images
-
-The PNGs use a diverging colormap:
-
-- Blue tones: negative SDF values (inside the shape).
-- Red tones: positive SDF values (outside the shape).
-- White/near zero: near the surface.
-- Black contour line: the zero level set (the shape boundary).
-
-For `outputs/vis3d`, the volume render highlights values near the zero level set,
-so the visible surface corresponds to the SDF = 0 boundary.
-
-## How pyAMReX helps
-
-pyAMReX provides the grid/mesh infrastructure that makes it easy to evaluate
-an SDF on a structured domain and scale the work later if needed:
+pyAMReX provides the grid/mesh infrastructure:
 
 - `BoxArray` defines how the domain is split into tiles.
 - `DistributionMapping` assigns each tile to a compute resource.
 - `MultiFab` stores grid-aligned data (the SDF values) for each tile.
-
-In `scripts/render_all_sdfs.py`, the line below allocates the SDF storage:
 
 ```python
 sdf_mf = amr.MultiFab(ba, dm, 1, 0)
@@ -243,8 +264,7 @@ Because `ncomp = 1` and `ngrow = 0`, each tile is accessed as
 
 ## Short syntax guide
 
-These are the core AMReX objects used in `render_all_sdfs.py`, explained in
-plain terms:
+These are the core AMReX objects, explained in plain terms:
 
 - `amr.RealBox(prob_lo, prob_hi)`: defines the physical bounds of the domain
   (e.g., x and y from 0 to 1).

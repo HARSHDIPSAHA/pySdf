@@ -126,8 +126,8 @@ def main():
     )
     parser.add_argument(
         "--out",
-        default=os.path.join("outputs", "zeroSDFvis"),
-        help="Output folder for PNGs (default: outputs/zeroSDFvis)",
+        default="zeroSDFvis",
+        help="Output folder for PNGs (default: zeroSDFvis/)",
     )
     args = parser.parse_args()
 

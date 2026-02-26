@@ -22,8 +22,11 @@ setup(
         "numpy>=1.20.0",
     ],
     extras_require={
-        "amrex": ["amrex>=23.0"],
-        "viz": ["matplotlib>=3.5.0", "plotly>=5.0.0", "scikit-image>=0.19.0"],
+        # pyAMReX is NOT on PyPI — install via conda:
+        #   conda create -n pyamrex -c conda-forge pyamrex
+        # This entry is a documentation placeholder only.
+        "amrex": [],
+        "viz": ["matplotlib>=3.5.0", "scikit-image>=0.19.0"],
         "dev": ["pytest>=7.0", "black", "flake8"],
     },
     classifiers=[

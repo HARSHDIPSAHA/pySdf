@@ -1,854 +1,451 @@
 # SDF Library API Documentation
 
-Complete reference guide for using the Signed Distance Function (SDF) library with pyAMReX.
+Reference guide for the `sdf2d` and `sdf3d` packages.
+
+## Table of Contents
+
+1. [Installation](#installation)
+2. [What is implemented](#what-is-implemented)
+3. [Quick start](#quick-start)
+4. [2D API — `sdf2d`](#2d-api--sdf2d)
+5. [3D API — `sdf3d`](#3d-api--sdf3d)
+6. [AMReX integration](#amrex-integration)
+7. [Low-level math — `sdf_lib`](#low-level-math--sdf_lib)
+8. [Tips](#tips)
+
+---
 
 ## Installation
 
 ```bash
-# Basic installation (numpy only)
+# Basic (numpy only)
 pip install -e .
 
-# With visualization support (plotly, matplotlib, scikit-image)
+# With visualization (matplotlib, plotly, scikit-image)
 pip install -e .[viz]
 
-# With AMReX support (if available)
+# With AMReX support
 pip install -e .[amrex]
 
 # All features
 pip install -e .[viz,amrex]
 ```
 
-**Note**: The library provides both **2D** (`sdf2d`) and **3D** (`sdf3d`) APIs. Both are installed together.
+---
 
-## Table of Contents
+## What is implemented
 
-1. [Installation](#installation)
-2. [Quick Start](#quick-start)
-3. [2D vs 3D APIs](#2d-vs-3d-apis)
-2. [Importing the Library](#importing-the-library)
-3. [AMReX MultiFab Mode (Solver-Native)](#amrex-multifab-mode-solver-native)
-4. [Geometry API Mode (NumPy Arrays)](#geometry-api-mode-numpy-arrays)
-5. [Available Primitives](#available-primitives)
-6. [Boolean Operations](#boolean-operations)
-7. [Transform Operations](#transform-operations)
-8. [Output Formats](#output-formats)
-9. [Complete Examples](#complete-examples)
+### Fully implemented and tested
+
+| Feature | Where |
+|---------|-------|
+| ~50 2D SDF primitives | `sdf2d.geometry` |
+| 6 3D SDF primitives | `sdf3d.geometry` |
+| Boolean ops (Union, Intersection, Subtraction) | both packages |
+| Transforms (translate, rotate, scale, round, onion, elongate) | both packages |
+| Grid sampling to NumPy arrays | `sdf2d.grid`, `sdf3d.grid` |
+| AMReX MultiFab output | `sdf2d.amrex`, `sdf3d.amrex` |
+| Complex assemblies | `sdf3d.complex` (NATOFragment, RocketAssembly) |
+| ~100 unit tests | `tests/` |
+
+### Not yet implemented
+
+- Smooth boolean operations (smooth union / smooth subtraction with blending)
+- Adaptive or hierarchical grid sampling
+- Mesh extraction (marching cubes integration)
 
 ---
 
-## 2D vs 3D APIs
+## Quick start
 
-This library provides **two separate APIs**:
+### NumPy mode (no AMReX)
 
-- **`sdf2d`**: 2D signed distance functions (circles, boxes, polygons, etc.)
-- **`sdf3d`**: 3D signed distance functions (spheres, boxes, torus, etc.)
+```python
+from sdf3d import Sphere3D, Box3D, Union3D, sample_levelset_3d
+import numpy as np
 
-Both APIs follow the same design pattern:
-- Geometry objects (Circle, Sphere, Box, etc.)
-- Boolean operations (Union, Intersection, Subtraction)
-- AMReX MultiFab support (`SDFLibrary2D`, `SDFLibrary`)
-- NumPy array sampling (`sample_levelset_2d`, `sample_levelset`)
+sphere = Sphere3D(radius=0.3)
+box    = Box3D(half_size=(0.2, 0.2, 0.2)).translate(0.4, 0.0, 0.0)
+shape  = Union3D(sphere, box)
 
-This documentation focuses on **3D** (`sdf3d`). For 2D usage, see the `sdf2d` module docstring or examples in `2d/examples_2d.py`.
+phi = sample_levelset_3d(shape, bounds=((-1,1),(-1,1),(-1,1)), resolution=(64,64,64))
+# phi.shape == (64, 64, 64);  phi < 0 inside, phi > 0 outside
+```
 
-## Quick Start
-
-### AMReX MultiFab Mode (Recommended for Solvers)
-
-**Generate and save level set:**
+### AMReX mode
 
 ```python
 import amrex.space3d as amr
-from sdf3d import SDFLibrary
+from sdf3d import SDFLibrary3D
 
 amr.initialize([])
 try:
-    # Setup grid
-    real_box = amr.RealBox([-1, -1, -1], [1, 1, 1])
-    domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(63, 63, 63))
-    geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
-    ba = amr.BoxArray(domain)
-    ba.max_size(32)
-    dm = amr.DistributionMapping(ba)
+    real_box = amr.RealBox([-1,-1,-1], [1,1,1])
+    domain   = amr.Box(amr.IntVect(0,0,0), amr.IntVect(63,63,63))
+    geom     = amr.Geometry(domain, real_box, 0, [0,0,0])
+    ba       = amr.BoxArray(domain); ba.max_size(32)
+    dm       = amr.DistributionMapping(ba)
 
-    # Create library instance
-    lib = SDFLibrary(geom, ba, dm)
-
-    # Generate level set field φ(x,y,z)
-    levelset = lib.sphere(center=(0, 0, 0), radius=0.3)
-    # levelset is an AMReX MultiFab containing the level set
-
-    # Save level set to plotfile (for your solver)
-    varnames = amr.Vector_string(["phi"])
-    amr.write_single_level_plotfile("output/my_levelset", levelset, varnames, geom, 0.0, 0)
-    print("✅ Level set saved to: output/my_levelset/")
+    lib      = SDFLibrary3D(geom, ba, dm)
+    levelset = lib.sphere(center=(0,0,0), radius=0.3)
+    # levelset is an amr.MultiFab
 finally:
     amr.finalize()
 ```
 
-### Geometry API Mode (For Visualization/Testing)
-
-**Generate and save level set:**
-
-```python
-from sdf3d import Sphere, sample_levelset
-import numpy as np
-
-# Create geometry
-sphere = Sphere(0.3)
-
-# Generate level set on grid
-bounds = ((-1, 1), (-1, 1), (-1, 1))
-res = (64, 64, 64)
-phi = sample_levelset(sphere, bounds, res)
-# phi is a numpy array containing the level set φ(x,y,z)
-
-# Save level set to file
-np.save("output/levelset.npy", phi)
-print("✅ Level set saved to: output/levelset.npy")
-```
-
 ---
 
-## Importing the Library
+## 2D API — `sdf2d`
 
-### For AMReX MultiFab Usage
+### Base class
 
 ```python
-import amrex.space3d as amr
-from sdf3d import SDFLibrary
+from sdf2d import Geometry2D
 ```
 
-### For Geometry API Usage
+`Geometry2D(func)` wraps any callable `func(p: ndarray) -> ndarray` where `p` has shape `(..., 2)` and the return shape is `(...)`.
+
+#### Methods on every geometry
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `sdf` | `sdf(p: ndarray) -> ndarray` | signed distance values |
+| `translate` | `translate(tx, ty)` | `Geometry2D` |
+| `rotate` | `rotate(angle_rad)` | `Geometry2D` |
+| `scale` | `scale(factor)` | `Geometry2D` |
+| `round` | `round(radius)` | `Geometry2D` |
+| `onion` | `onion(thickness)` | `Geometry2D` |
+| `union` | `union(other)` | `Geometry2D` |
+| `subtract` | `subtract(other)` | `Geometry2D` |
+| `intersect` | `intersect(other)` | `Geometry2D` |
+
+### Primitive shapes
 
 ```python
-from sdf3d import (
-    Sphere, Box, RoundBox,
-    Cylinder, Cone, Torus,
-    # ... see full list below
-    sample_levelset
+from sdf2d import (
+    Circle2D, Box2D, RoundedBox2D, OrientedBox2D,
+    Segment2D, Rhombus2D, Trapezoid2D, Parallelogram2D,
+    EquilateralTriangle2D, TriangleIsosceles2D, Triangle2D,
+    UnevenCapsule2D,
+    Pentagon2D, Hexagon2D, Octagon2D, NGon2D,
+    Hexagram2D, Star5_2D, Star2D,
+    Pie2D, CutDisk2D, Arc2D, Ring2D, Horseshoe2D,
+    Vesica2D, Moon2D, RoundedCross2D, Egg2D, Heart2D,
+    Cross2D, RoundedX2D,
+    Polygon2D, Ellipse2D, Parabola2D, ParabolaSegment2D,
+    Bezier2D, BlobbyCross2D, Tunnel2D, Stairs2D,
+    QuadraticCircle2D, Hyperbola2D,
 )
 ```
 
----
+| Class | Constructor |
+|-------|-------------|
+| `Circle2D` | `Circle2D(radius)` |
+| `Box2D` | `Box2D(half_size)` — `half_size = (hx, hy)` |
+| `RoundedBox2D` | `RoundedBox2D(half_size, radius)` |
+| `OrientedBox2D` | `OrientedBox2D(point_a, point_b, width)` |
+| `Segment2D` | `Segment2D(a, b)` — unsigned distance to segment |
+| `Rhombus2D` | `Rhombus2D(half_size)` |
+| `Trapezoid2D` | `Trapezoid2D(r1, r2, height)` |
+| `Parallelogram2D` | `Parallelogram2D(width, height, skew)` |
+| `EquilateralTriangle2D` | `EquilateralTriangle2D(size)` |
+| `TriangleIsosceles2D` | `TriangleIsosceles2D(width, height)` |
+| `Triangle2D` | `Triangle2D(p0, p1, p2)` |
+| `UnevenCapsule2D` | `UnevenCapsule2D(r1, r2, height)` |
+| `Pentagon2D` | `Pentagon2D(radius)` |
+| `Hexagon2D` | `Hexagon2D(radius)` |
+| `Octagon2D` | `Octagon2D(radius)` |
+| `NGon2D` | `NGon2D(radius, n_sides)` |
+| `Hexagram2D` | `Hexagram2D(radius)` |
+| `Star5_2D` | `Star5_2D(outer_radius, inner_factor)` |
+| `Star2D` | `Star2D(radius, n_points, inner_factor)` |
+| `Pie2D` | `Pie2D(sin_cos, radius)` |
+| `CutDisk2D` | `CutDisk2D(radius, cut_height)` |
+| `Arc2D` | `Arc2D(sin_cos, radius, thickness)` |
+| `Ring2D` | `Ring2D(inner_radius, outer_radius)` |
+| `Horseshoe2D` | `Horseshoe2D(sin_cos, radius, widths)` |
+| `Vesica2D` | `Vesica2D(radius, offset)` |
+| `Moon2D` | `Moon2D(d, ra, rb)` |
+| `RoundedCross2D` | `RoundedCross2D(size)` |
+| `Egg2D` | `Egg2D(ra, rb)` |
+| `Heart2D` | `Heart2D()` |
+| `Cross2D` | `Cross2D(size, r)` |
+| `RoundedX2D` | `RoundedX2D(size, r)` |
+| `Polygon2D` | `Polygon2D(vertices)` — `vertices` is a list of `[x, y]` |
+| `Ellipse2D` | `Ellipse2D(radii)` — `radii = (rx, ry)` |
+| `Parabola2D` | `Parabola2D(k)` |
+| `ParabolaSegment2D` | `ParabolaSegment2D(width, height)` |
+| `Bezier2D` | `Bezier2D(a, b, c)` — quadratic Bézier, unsigned |
+| `BlobbyCross2D` | `BlobbyCross2D(size)` |
+| `Tunnel2D` | `Tunnel2D(size)` — `size = (wx, wy)` |
+| `Stairs2D` | `Stairs2D(size, n)` — `size = (tread, rise)` |
+| `QuadraticCircle2D` | `QuadraticCircle2D()` |
+| `Hyperbola2D` | `Hyperbola2D(k, he)` |
 
-## AMReX MultiFab Mode (Solver-Native)
+> **Note:** `Octogon2D` is an alias for `Octagon2D` (backward compatibility for the old spelling).
 
-This mode generates **AMReX MultiFab** objects directly, which is the native format for physics solvers.
-
-### Initialization
+### Boolean operations
 
 ```python
+from sdf2d import Union2D, Intersection2D, Subtraction2D
+
+u = Union2D(a, b)            # SDF = min(a, b)
+i = Intersection2D(a, b)     # SDF = max(a, b)
+s = Subtraction2D(a, b)      # SDF = max(-a, b)
+
+# Equivalent method syntax:
+u = a.union(b)
+i = a.intersect(b)
+s = a.subtract(b)
+```
+
+`Union2D` also accepts more than two arguments: `Union2D(a, b, c, ...)`.
+
+### Grid sampling
+
+```python
+from sdf2d import sample_levelset_2d, save_npy
+
+phi = sample_levelset_2d(
+    geom,                          # Geometry2D
+    bounds=((-1,1), (-1,1)),       # ((xlo,xhi), (ylo,yhi))
+    resolution=(nx, ny),           # integer grid sizes
+)
+# phi.shape == (ny, nx)  — y-first (row-major)
+# phi < 0 inside, phi > 0 outside, phi = 0 on boundary
+
+save_npy("output/levelset.npy", phi)  # creates parent dirs automatically
+```
+
+### AMReX (2D)
+
+```python
+from sdf2d import SDFLibrary2D
+import amrex.space2d as amr
+
+lib = SDFLibrary2D(geom, ba, dm)
+
+mf = lib.circle(center=(cx, cy), radius=r)
+mf = lib.box(center=(cx, cy), size=(hx, hy))
+mf = lib.rounded_box(center=(cx, cy), size=(hx, hy), radius=r)
+mf = lib.hexagon(center=(cx, cy), radius=r)
+mf = lib.from_geometry(geom_obj)   # any Geometry2D
+
+mf = lib.union(mf1, mf2)
+mf = lib.subtract(base, cutter)
+mf = lib.intersect(mf1, mf2)
+mf = lib.negate(mf)
+```
+
+---
+
+## 3D API — `sdf3d`
+
+### Base class
+
+```python
+from sdf3d import Geometry3D
+```
+
+`Geometry3D(func)` wraps any callable `func(p: ndarray) -> ndarray` where `p` has shape `(..., 3)` and the return shape is `(...)`.
+
+#### Methods on every geometry
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `sdf` | `sdf(p: ndarray) -> ndarray` | signed distance values |
+| `translate` | `translate(tx, ty, tz)` | `Geometry3D` |
+| `rotate_x` | `rotate_x(angle_rad)` | `Geometry3D` |
+| `rotate_y` | `rotate_y(angle_rad)` | `Geometry3D` |
+| `rotate_z` | `rotate_z(angle_rad)` | `Geometry3D` |
+| `scale` | `scale(factor)` | `Geometry3D` |
+| `elongate` | `elongate(hx, hy, hz)` | `Geometry3D` |
+| `round` | `round(radius)` | `Geometry3D` |
+| `onion` | `onion(thickness)` | `Geometry3D` |
+| `union` | `union(other)` | `Geometry3D` |
+| `subtract` | `subtract(other)` | `Geometry3D` |
+| `intersect` | `intersect(other)` | `Geometry3D` |
+
+### Primitive shapes
+
+```python
+from sdf3d import Sphere3D, Box3D, RoundBox3D, Cylinder3D, ConeExact3D, Torus3D
+```
+
+| Class | Constructor | Notes |
+|-------|-------------|-------|
+| `Sphere3D` | `Sphere3D(radius)` | Exact SDF |
+| `Box3D` | `Box3D(half_size)` — `half_size = (hx, hy, hz)` | Exact SDF |
+| `RoundBox3D` | `RoundBox3D(half_size, radius)` | Box with rounded corners |
+| `Cylinder3D` | `Cylinder3D(axis_offset, radius)` — `axis_offset = [ox, oy]` | Infinite cylinder along Z |
+| `ConeExact3D` | `ConeExact3D(sincos, height)` — `sincos = [sin θ, cos θ]` | Finite cone, exact SDF |
+| `Torus3D` | `Torus3D(radii)` — `radii = (R, r)` | Major/minor radii |
+
+### Boolean operations
+
+```python
+from sdf3d import Union3D, Intersection3D, Subtraction3D
+
+u = Union3D(a, b)            # SDF = min(a, b)
+i = Intersection3D(a, b)     # SDF = max(a, b)
+s = Subtraction3D(a, b)      # SDF = max(-a, b)
+
+# Equivalent method syntax:
+u = a.union(b)
+i = a.intersect(b)
+s = a.subtract(b)
+```
+
+`Union3D` also accepts more than two arguments.
+
+### Grid sampling
+
+```python
+from sdf3d import sample_levelset_3d, save_npy
+
+phi = sample_levelset_3d(
+    geom,                                    # Geometry3D
+    bounds=((-1,1), (-1,1), (-1,1)),         # ((xlo,xhi), (ylo,yhi), (zlo,zhi))
+    resolution=(nx, ny, nz),
+)
+# phi.shape == (nz, ny, nx)  — z-first (C-order)
+# phi < 0 inside, phi > 0 outside
+
+save_npy("output/levelset.npy", phi)
+```
+
+### Complex assemblies
+
+```python
+from sdf3d.complex import NATOFragment, RocketAssembly
+```
+
+Both return `(multifab_or_geom, Geometry3D)`. If `lib` is a real `SDFLibrary3D`, the first element is an AMReX `MultiFab`. If a mock object is passed (e.g., in tests), it is whatever `lib.from_geometry()` returns.
+
+#### `NATOFragment`
+
+```python
+multifab, geom = NATOFragment(
+    lib,
+    diameter=14.30e-3,    # fragment diameter (m)
+    L_over_D=1.09,        # length-to-diameter ratio
+    cone_angle_deg=20.0,  # nose cone half-angle (degrees)
+)
+```
+
+#### `RocketAssembly`
+
+```python
+multifab, geom = RocketAssembly(
+    lib,
+    body_radius=0.15,     # cylinder body radius
+    L_extra=0.40,         # body cylinder half-height
+    nose_len=0.25,        # nose sphere radius
+    fin_span=0.12,        # fin half-extent (radial)
+    fin_height=0.18,      # fin half-height (axial)
+    fin_thickness=0.03,   # fin half-thickness
+    n_fins=4,             # number of fins (evenly spaced)
+)
+```
+
+### AMReX (3D)
+
+```python
+from sdf3d import SDFLibrary3D
 import amrex.space3d as amr
-from sdf3d import SDFLibrary
 
-amr.initialize([])  # Required!
+lib = SDFLibrary3D(geom, ba, dm)
 
-# Define domain
-real_box = amr.RealBox([xlo, ylo, zlo], [xhi, yhi, zhi])
-domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(nx-1, ny-1, nz-1))
-geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
+mf = lib.sphere(center=(cx,cy,cz), radius=r)
+mf = lib.box(center=(cx,cy,cz), size=(hx,hy,hz))
+mf = lib.round_box(center=(cx,cy,cz), size=(hx,hy,hz), radius=r)
+mf = lib.from_geometry(geom_obj)   # any Geometry3D
 
-# Create box array and distribution mapping
-ba = amr.BoxArray(domain)
-ba.max_size(max_box_size)  # e.g., 32
-dm = amr.DistributionMapping(ba)
-
-# Create SDF library instance
-lib = SDFLibrary(geom, ba, dm)
-```
-
-### Available Primitives (MultiFab Mode)
-
-#### Sphere
-
-```python
-mf = lib.sphere(center=(x, y, z), radius=r)
-```
-
-**Parameters:**
-- `center`: Tuple `(x, y, z)` - center position
-- `radius`: Float - sphere radius
-
-**Returns:** `amr.MultiFab` with SDF values
-
-**Example:**
-```python
-mf = lib.sphere(center=(0.0, 0.0, 0.0), radius=0.3)
-```
-
-#### Box
-
-```python
-mf = lib.box(center=(x, y, z), size=(wx, wy, wz))
-```
-
-**Parameters:**
-- `center`: Tuple `(x, y, z)` - center position
-- `size`: Tuple `(wx, wy, wz)` - half-widths in each direction
-
-**Returns:** `amr.MultiFab` with SDF values
-
-**Example:**
-```python
-mf = lib.box(center=(0.0, 0.0, 0.0), size=(0.25, 0.2, 0.15))
-```
-
-#### RoundBox
-
-```python
-mf = lib.round_box(center=(x, y, z), size=(wx, wy, wz), radius=r)
-```
-
-**Parameters:**
-- `center`: Tuple `(x, y, z)` - center position
-- `size`: Tuple `(wx, wy, wz)` - half-widths
-- `radius`: Float - rounding radius
-
-**Example:**
-```python
-mf = lib.round_box(center=(0, 0, 0), size=(0.25, 0.25, 0.25), radius=0.05)
-```
-
-### Boolean Operations (MultiFab Mode)
-
-All operations work on `MultiFab` objects and return new `MultiFab` objects.
-
-#### Union
-
-```python
-result = lib.union(mf1, mf2)
-```
-
-**Mathematical Formula:** `min(SDF1, SDF2)`
-
-**Example:**
-```python
-a = lib.sphere(center=(-0.3, 0, 0), radius=0.25)
-b = lib.sphere(center=(0.3, 0, 0), radius=0.25)
-combined = lib.union(a, b)
-```
-
-#### Intersection
-
-```python
-result = lib.intersect(mf1, mf2)
-```
-
-**Mathematical Formula:** `max(SDF1, SDF2)`
-
-**Example:**
-```python
-a = lib.sphere(center=(0, 0, 0), radius=0.35)
-b = lib.sphere(center=(0.2, 0, 0), radius=0.35)
-overlap = lib.intersect(a, b)
-```
-
-#### Subtraction
-
-```python
-result = lib.subtract(base, cutter)
-```
-
-**Mathematical Formula:** `max(-SDF_base, SDF_cutter)`
-
-**Example:**
-```python
-base = lib.sphere(center=(0, 0, 0), radius=0.4)
-hole = lib.sphere(center=(0.2, 0, 0), radius=0.25)
-result = lib.subtract(base, hole)  # Creates a hole
-```
-
-#### Negation
-
-```python
-result = lib.negate(mf)
-```
-
-**Mathematical Formula:** `-SDF`
-
-**Example:**
-```python
-mf = lib.sphere(center=(0, 0, 0), radius=0.3)
-inverted = lib.negate(mf)  # Inside becomes outside
+mf = lib.union(mf1, mf2)
+mf = lib.subtract(base, cutter)
+mf = lib.intersect(mf1, mf2)
+mf = lib.negate(mf)
 ```
 
 ---
 
-## Geometry API Mode (NumPy Arrays)
+## AMReX integration
 
-This mode uses geometry objects that can be sampled to NumPy arrays. Useful for visualization and testing.
-
-### Available Primitives (Geometry API)
-
-#### Sphere
+Both `SDFLibrary2D` and `SDFLibrary3D` require AMReX to be installed and initialized before use:
 
 ```python
-from sdf3d import Sphere
-
-sphere = Sphere(radius)
-```
-
-**Parameters:**
-- `radius`: Float - sphere radius
-
-**Example:**
-```python
-sphere = Sphere(0.3)
-```
-
-#### Box
-
-```python
-from sdf3d import Box
-
-box = Box(size)
-```
-
-**Parameters:**
-- `size`: Tuple `(wx, wy, wz)` - half-widths
-
-**Example:**
-```python
-box = Box((0.25, 0.2, 0.15))
-```
-
-#### RoundBox
-
-```python
-from sdf3d import RoundBox
-
-round_box = RoundBox(size, radius)
-```
-
-**Parameters:**
-- `size`: Tuple `(wx, wy, wz)` - half-widths
-- `radius`: Float - rounding radius
-
-**Example:**
-```python
-rb = RoundBox((0.25, 0.25, 0.25), 0.05)
-```
-
-#### Cylinder
-
-```python
-from sdf3d import Cylinder
-
-cylinder = Cylinder(radius, height)
-```
-
-**Parameters:**
-- `radius`: Float - cylinder radius
-- `height`: Float - cylinder height
-
-**Example:**
-```python
-cyl = Cylinder(0.2, 0.4)
-```
-
-#### Torus
-
-```python
-from sdf3d import Torus
-
-torus = Torus(major_radius, minor_radius)
-```
-
-**Parameters:**
-- `major_radius`: Float - distance from center to tube center
-- `minor_radius`: Float - tube radius
-
-**Example:**
-```python
-torus = Torus(0.25, 0.08)
-```
-
-### Transform Operations (Geometry API)
-
-All geometry objects support chaining operations.
-
-#### Translation
-
-```python
-translated = geometry.translate(dx, dy, dz)
-```
-
-**Example:**
-```python
-sphere = Sphere(0.3)
-moved = sphere.translate(0.2, 0.1, 0.0)
-```
-
-#### Rotation
-
-```python
-rotated = geometry.rotate_x(angle_radians)
-rotated = geometry.rotate_y(angle_radians)
-rotated = geometry.rotate_z(angle_radians)
-```
-
-**Example:**
-```python
-import numpy as np
-box = Box((0.25, 0.25, 0.25))
-rotated = box.rotate_z(np.pi / 4)  # 45 degrees
-```
-
-#### Scaling
-
-```python
-scaled = geometry.scale(factor)
-```
-
-**Example:**
-```python
-sphere = Sphere(0.3)
-bigger = sphere.scale(1.5)
-```
-
-#### Elongation
-
-```python
-elongated = geometry.elongate(dx, dy, dz)
-```
-
-**Example:**
-```python
-sphere = Sphere(0.25)
-capsule = sphere.elongate(0.3, 0.0, 0.0)  # Elongate in x-direction
-```
-
-### Boolean Operations (Geometry API)
-
-#### Union
-
-```python
-from sdf3d import Union
-
-combined = Union(geom1, geom2)
-```
-
-**Example:**
-```python
-a = Sphere(0.25)
-b = Box((0.2, 0.2, 0.2))
-combined = Union(a, b)
-```
-
-#### Intersection
-
-```python
-from sdf3d import Intersection
-
-overlap = Intersection(geom1, geom2)
-```
-
-**Example:**
-```python
-a = Sphere(0.35)
-b = Sphere(0.35).translate(0.2, 0, 0)
-overlap = Intersection(a, b)
-```
-
-#### Subtraction
-
-```python
-from sdf3d import Subtraction
-
-result = Subtraction(base, cutter)
-```
-
-**Example:**
-```python
-base = Sphere(0.4)
-hole = Sphere(0.25).translate(0.2, 0, 0)
-result = Subtraction(base, hole)
-```
-
-### Sampling Geometry to NumPy Array
-
-```python
-from sdf3d import sample_levelset
-
-phi = sample_levelset(geometry, bounds, resolution)
-```
-
-**Parameters:**
-- `geometry`: Geometry object (Sphere, Box, etc. or combined)
-- `bounds`: Tuple of tuples `((xlo, xhi), (ylo, yhi), (zlo, zhi))`
-- `resolution`: Tuple `(nx, ny, nz)` - grid resolution
-
-**Returns:** NumPy array of shape `(nx, ny, nz)` with SDF values
-
-**Example:**
-```python
-sphere = Sphere(0.3)
-bounds = ((-1, 1), (-1, 1), (-1, 1))
-res = (64, 64, 64)
-phi = sample_levelset(sphere, bounds, res)
-print(phi.shape)  # (64, 64, 64)
-print(phi.min(), phi.max())  # negative, positive
-```
-
----
-
-## Getting Level Set as Output
-
-**The level set (φ) is the signed distance field itself.** The MultiFab or NumPy array you get from the library **IS** the level set data.
-
-### What is a Level Set?
-
-A level set φ(x, y, z) is a scalar field where:
-- **φ < 0**: Inside the geometry
-- **φ = 0**: On the surface (zero level set)
-- **φ > 0**: Outside the geometry
-
-The library generates this field on a grid, and you can save it for your solver.
-
----
-
-## Output Formats
-
-### AMReX MultiFab (Level Set Output)
-
-When using `SDFLibrary`, the output **MultiFab contains the level set field**.
-
-**The MultiFab IS the level set:**
-```python
-import amrex.space3d as amr
-from sdf3d import SDFLibrary
+import amrex.space3d as amr   # or amrex.space2d for 2D
 
 amr.initialize([])
 try:
-    # Setup grid
-    real_box = amr.RealBox([-1, -1, -1], [1, 1, 1])
-    domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(63, 63, 63))
-    geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
-    ba = amr.BoxArray(domain)
-    ba.max_size(32)
-    dm = amr.DistributionMapping(ba)
+    # build grid objects
+    real_box = amr.RealBox([xlo,ylo,zlo], [xhi,yhi,zhi])
+    domain   = amr.Box(amr.IntVect(0,0,0), amr.IntVect(nx-1,ny-1,nz-1))
+    geom     = amr.Geometry(domain, real_box, 0, [0,0,0])
+    ba       = amr.BoxArray(domain); ba.max_size(32)
+    dm       = amr.DistributionMapping(ba)
 
-    lib = SDFLibrary(geom, ba, dm)
-    
-    # Generate level set
-    levelset = lib.sphere(center=(0, 0, 0), radius=0.3)
-    # levelset is an amr.MultiFab containing φ(x,y,z)
-    
-    # Save level set to plotfile (for solver input)
-    varnames = amr.Vector_string(["phi"])  # or "sdf", "levelset", etc.
-    amr.write_single_level_plotfile("output/levelset_plt00000", levelset, varnames, geom, 0.0, 0)
-    print("Level set saved to: output/levelset_plt00000/")
-finally:
-    amr.finalize()
-```
+    from sdf3d import SDFLibrary3D
+    lib = SDFLibrary3D(geom, ba, dm)
+    mf  = lib.sphere(center=(0,0,0), radius=0.3)
 
-**Accessing level set values:**
-```python
-# Iterate over boxes to access level set values
-for mfi in levelset:
-    arr = levelset.array(mfi).to_numpy()
-    # arr shape: (ny, nx, nz, ncomp) or (ny, nx, nz, ncomp, ngrow)
-    phi = arr[..., 0] if arr.ndim == 4 else arr[..., 0, 0]
-    # phi is the level set field for this box
-    # phi[i,j,k] = signed distance at cell (i,j,k)
-```
-
-**Complete example: Generate and save level set**
-```python
-import amrex.space3d as amr
-from sdf3d import SDFLibrary
-
-amr.initialize([])
-try:
-    # Setup
-    real_box = amr.RealBox([-1, -1, -1], [1, 1, 1])
-    domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(127, 127, 127))
-    geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
-    ba = amr.BoxArray(domain)
-    ba.max_size(32)
-    dm = amr.DistributionMapping(ba)
-
-    lib = SDFLibrary(geom, ba, dm)
-
-    # Build complex geometry
-    base = lib.sphere(center=(0, 0, 0), radius=0.4)
-    hole = lib.sphere(center=(0.2, 0, 0), radius=0.25)
-    levelset = lib.subtract(base, hole)
-
-    # Save level set to plotfile
+    # Save plotfile (readable by yt and AMReX-based solvers)
     varnames = amr.Vector_string(["phi"])
-    amr.write_single_level_plotfile("output/my_levelset", levelset, varnames, geom, 0.0, 0)
-    print("✅ Level set saved to: output/my_levelset/")
-    print("   Your solver can now read this plotfile!")
+    amr.write_single_level_plotfile("output/levelset", mf, varnames, geom, 0.0, 0)
 finally:
     amr.finalize()
 ```
 
-### NumPy Array (Level Set Output)
+> AMReX is **not** on PyPI. See [INSTALLATION.md](INSTALLATION.md) for build instructions.
 
-When using `sample_levelset`, the output **NumPy array IS the level set field**.
+### Reading MultiFab values
 
-**Generate and save level set:**
 ```python
-from sdf3d import Sphere, sample_levelset
+for mfi in mf:
+    arr = mf.array(mfi).to_numpy()
+    phi = arr[..., 0]   # shape (ny, nx[, nz]) — one SDF component, no ghost cells
+```
+
+---
+
+## Low-level math — `sdf_lib`
+
+`sdf_lib.py` contains the underlying NumPy functions used by both `sdf2d` and `sdf3d`. You can use them directly for maximum control:
+
+```python
+import sdf_lib as sdf
 import numpy as np
 
-# Create geometry
-sphere = Sphere(0.3)
+# Points: shape (..., 3) for 3D functions, (..., 2) for 2D functions
+p = np.array([[[0.0, 0.0, 0.0]]])
+d = sdf.sdSphere(p, 0.3)       # d[0,0] == -0.3
 
-# Generate level set on grid
-bounds = ((-1, 1), (-1, 1), (-1, 1))
-res = (128, 128, 128)
-phi = sample_levelset(sphere, bounds, res)
-# phi is a numpy array of shape (128, 128, 128)
-# phi[i,j,k] = signed distance at grid point (i,j,k)
-
-# Save level set to file
-np.save("output/levelset.npy", phi)
-print("✅ Level set saved to: output/levelset.npy")
-print(f"   Shape: {phi.shape}")
-print(f"   Min (inside): {phi.min():.6f}")
-print(f"   Max (outside): {phi.max():.6f}")
+# 2D example
+q = np.array([[0.0, 0.0]])
+d = sdf.sdCircle(q, 0.3)       # d[0] == -0.3
 ```
 
-**Load level set from file:**
-```python
-import numpy as np
+All functions follow the naming convention `sd<Shape>` (signed) or `ud<Shape>` (unsigned). Boolean and warp operators are prefixed with `op`. Full list:
 
-# Load level set
-phi = np.load("output/levelset.npy")
-print(f"Loaded level set: shape {phi.shape}")
+**3D primitives:** `sdSphere`, `sdBox`, `sdRoundBox`, `sdBoxFrame`, `sdTorus`, `sdCappedTorus`, `sdLink`, `sdCylinder`, `sdConeExact`, `sdConeBound`, `sdConeInfinite`, `sdPlane`, `sdHexPrism`, `sdTriPrism`, `sdCapsule`, `sdVerticalCapsule`, `sdCappedCylinder`, `sdCappedCylinderSegment`, `sdRoundedCylinder`, `sdCappedCone`, `sdCappedConeSegment`, `sdSolidAngle`, `sdCutSphere`, `sdCutHollowSphere`, `sdDeathStar`, `sdRoundCone`, `sdRoundConeSegment`, `sdEllipsoid`, `sdVesicaSegment`, `sdRhombus`, `sdOctahedronExact`, `sdOctahedronBound`, `sdPyramid`
 
-# Use in your code
-# phi[i,j,k] gives signed distance at grid point (i,j,k)
-inside = phi < 0
-surface = np.abs(phi) < 0.01  # Near zero level set
-outside = phi > 0
-```
+**3D unsigned:** `udTriangle`, `udQuad`
 
-**Complete example: Generate, save, and verify level set**
-```python
-from sdf3d import Sphere, Box, Union, sample_levelset
-import numpy as np
+**2D primitives:** `sdCircle`, `sdBox2D`, `sdRoundedBox2D`, `sdOrientedBox2D`, `sdSegment`, `sdRhombus2D`, `sdTrapezoid2D`, `sdParallelogram2D`, `sdEquilateralTriangle`, `sdTriangleIsosceles`, `sdTriangle2D`, `sdUnevenCapsule2D`, `sdPentagon`, `sdHexagon`, `sdOctagon`, `sdNGon`, `sdHexagram`, `sdStar5`, `sdStar`, `sdPie2D`, `sdCutDisk`, `sdArc`, `sdRing`, `sdHorseshoe`, `sdVesica2D`, `sdMoon`, `sdRoundedCross`, `sdEgg`, `sdHeart`, `sdCross`, `sdRoundedX`, `sdPolygon`, `sdEllipse2D`, `sdParabola`, `sdParabolaSegment`, `sdBezier`, `sdBlobbyCross`, `sdTunnel`, `sdStairs`, `sdQuadraticCircle`, `sdHyperbola`
 
-# Build geometry
-sphere = Sphere(0.25).translate(-0.3, 0, 0)
-box = Box((0.2, 0.2, 0.2)).translate(0.3, 0, 0)
-combined = Union(sphere, box)
+**Boolean:** `opUnion`, `opSubtraction`, `opIntersection`
 
-# Generate level set
-bounds = ((-1, 1), (-1, 1), (-1, 1))
-res = (256, 256, 256)
-phi = sample_levelset(combined, bounds, res)
-
-# Save level set
-np.save("output/combined_levelset.npy", phi)
-
-# Verify
-print("✅ Level set generated and saved!")
-print(f"   File: output/combined_levelset.npy")
-print(f"   Shape: {phi.shape}")
-print(f"   Domain: x∈[{bounds[0][0]}, {bounds[0][1]}], "
-      f"y∈[{bounds[1][0]}, {bounds[1][1]}], "
-      f"z∈[{bounds[2][0]}, {bounds[2][1]}]")
-print(f"   Resolution: {res}")
-print(f"   Values: min={phi.min():.6f} (inside), max={phi.max():.6f} (outside)")
-print(f"   Surface cells (|φ| < 0.01): {(np.abs(phi) < 0.01).sum()}")
-```
+**Warp/space:** `opRound`, `opOnion`, `opElongate2`, `opRevolution`, `opTwist`, `opTx`, `opTx2D`
 
 ---
 
-## Complete Examples
+## Tips
 
-### Example 1: Complex Shape with AMReX (Level Set Output)
-
-```python
-import amrex.space3d as amr
-from sdf3d import SDFLibrary
-
-amr.initialize([])
-try:
-    # Setup
-    real_box = amr.RealBox([-1, -1, -1], [1, 1, 1])
-    domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(63, 63, 63))
-    geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
-    ba = amr.BoxArray(domain)
-    ba.max_size(32)
-    dm = amr.DistributionMapping(ba)
-
-    lib = SDFLibrary(geom, ba, dm)
-
-    # Build complex shape: sphere with box cutout
-    base = lib.sphere(center=(0, 0, 0), radius=0.4)
-    cutter = lib.box(center=(0.2, 0, 0), size=(0.15, 0.15, 0.15))
-    levelset = lib.subtract(base, cutter)  # This IS the level set
-
-    # Save level set to plotfile (for solver input)
-    varnames = amr.Vector_string(["phi"])
-    amr.write_single_level_plotfile("output/complex_levelset", levelset, varnames, geom, 0.0, 0)
-    print("✅ Level set saved to: output/complex_levelset/")
-finally:
-    amr.finalize()
-```
-
-### Example 2: Chained Operations with Geometry API (Level Set Output)
-
-```python
-from sdf3d import Sphere, Box, Union, sample_levelset
-import numpy as np
-
-# Create two shapes
-sphere = Sphere(0.25).translate(-0.3, 0, 0)
-box = Box((0.2, 0.2, 0.2)).translate(0.3, 0, 0)
-
-# Combine
-combined = Union(sphere, box)
-
-# Generate level set
-bounds = ((-1, 1), (-1, 1), (-1, 1))
-res = (128, 128, 128)
-phi = sample_levelset(combined, bounds, res)  # This IS the level set
-
-# Save level set to file
-np.save("output/combined_levelset.npy", phi)
-print("✅ Level set saved to: output/combined_levelset.npy")
-print(f"   Shape: {phi.shape}, Range: [{phi.min():.3f}, {phi.max():.3f}]")
-```
-
-### Example 3: Rocket Shape (Level Set Output)
-
-```python
-import amrex.space3d as amr
-from sdf3d import SDFLibrary
-
-amr.initialize([])
-try:
-    # Setup grid
-    real_box = amr.RealBox([-1, -1, -1], [1, 1, 1])
-    domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(127, 127, 127))
-    geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
-    ba = amr.BoxArray(domain)
-    ba.max_size(32)
-    dm = amr.DistributionMapping(ba)
-
-    lib = SDFLibrary(geom, ba, dm)
-
-    # Body (cylinder-like using elongated sphere)
-    body = lib.sphere(center=(0, 0, -0.3), radius=0.15)
-    
-    # Nose cone (smaller sphere)
-    nose = lib.sphere(center=(0, 0, 0.2), radius=0.1)
-    
-    # Fins (boxes)
-    fin1 = lib.box(center=(-0.1, 0.2, -0.2), size=(0.05, 0.15, 0.1))
-    fin2 = lib.box(center=(0.1, 0.2, -0.2), size=(0.05, 0.15, 0.1))
-    fin3 = lib.box(center=(0, -0.2, -0.2), size=(0.15, 0.05, 0.1))
-
-    # Combine: body + nose + fins
-    rocket = lib.union(body, nose)
-    rocket = lib.union(rocket, fin1)
-    rocket = lib.union(rocket, fin2)
-    rocket = lib.union(rocket, fin3)
-    # rocket is now a MultiFab containing the level set φ(x,y,z)
-
-    # Save level set to plotfile
-    varnames = amr.Vector_string(["phi"])
-    amr.write_single_level_plotfile("output/rocket_levelset", rocket, varnames, geom, 0.0, 0)
-    print("✅ Rocket level set saved to: output/rocket_levelset/")
-    print("   Your solver can read this plotfile as the level set field!")
-finally:
-    amr.finalize()
-```
-
----
-
-## Function Reference Summary
-
-### SDFLibrary Methods (AMReX Mode)
-
-| Method | Parameters | Returns | Description |
-|--------|-----------|---------|-------------|
-| `sphere` | `center, radius` | `MultiFab` | Sphere primitive |
-| `box` | `center, size` | `MultiFab` | Box primitive |
-| `round_box` | `center, size, radius` | `MultiFab` | Rounded box |
-| `union` | `mf1, mf2` | `MultiFab` | Boolean union |
-| `intersect` | `mf1, mf2` | `MultiFab` | Boolean intersection |
-| `subtract` | `base, cutter` | `MultiFab` | Boolean subtraction |
-| `negate` | `mf` | `MultiFab` | Negate SDF |
-
-### Geometry Classes (NumPy Mode)
-
-| Class | Parameters | Methods |
-|-------|-----------|---------|
-| `Sphere` | `radius` | `translate`, `rotate_*`, `scale`, `elongate` |
-| `Box` | `size` | `translate`, `rotate_*`, `scale`, `elongate` |
-| `RoundBox` | `size, radius` | `translate`, `rotate_*`, `scale`, `elongate` |
-| `Cylinder` | `radius, height` | `translate`, `rotate_*`, `scale`, `elongate` |
-| `Torus` | `major_r, minor_r` | `translate`, `rotate_*`, `scale`, `elongate` |
-| `Union` | `geom1, geom2` | `translate`, `rotate_*`, `scale`, `elongate` |
-| `Intersection` | `geom1, geom2` | `translate`, `rotate_*`, `scale`, `elongate` |
-| `Subtraction` | `base, cutter` | `translate`, `rotate_*`, `scale`, `elongate` |
-
-### Utility Functions
-
-| Function | Parameters | Returns | Description |
-|----------|-----------|---------|-------------|
-| `sample_levelset` | `geometry, bounds, resolution` | `ndarray` | Sample geometry to NumPy array |
-
----
-
-## Tips and Best Practices
-
-1. **Always initialize/finalize AMReX:**
-   ```python
-   amr.initialize([])
-   try:
-       # Your code
-   finally:
-       amr.finalize()
-   ```
-
-2. **Use appropriate grid resolution:**
-   - For testing: 64×64×64
-   - For production: 128×128×128 or higher
-   - Balance between accuracy and memory
-
-3. **Box size for parallelism:**
-   - `ba.max_size(32)` works well for most cases
-   - Smaller boxes = better parallelism but more overhead
-
-4. **Chaining operations:**
-   - Geometry API: Can chain transforms
-   - MultiFab mode: Store intermediate results, then combine
-
-5. **Memory management:**
-   - MultiFab operations create new objects
-   - Delete intermediate results if memory is limited
-
----
-
-## Troubleshooting
-
-### Import Errors
-
-If you get `ModuleNotFoundError: No module named 'sdf3d'`:
-- Make sure you're running from the project root
-- Or add project root to `PYTHONPATH`
-
-### AMReX Errors
-
-If you get segmentation faults:
-- Make sure `amr.initialize([])` is called before any AMReX operations
-- Make sure `amr.finalize()` is called in a `finally` block
-
-### Wrong Values
-
-If SDF values seem incorrect:
-- Check that your domain bounds include the geometry
-- Verify grid resolution is sufficient
-- Check that cell-centered coordinates are used correctly
-
----
-
-For more examples, see the `examples/` folder in the project root.
+- **Sign convention:** `phi < 0` inside, `phi = 0` on surface, `phi > 0` outside. This matches the level-set convention used by most physics solvers.
+- **Grid layout:** `sample_levelset_3d` returns shape `(nz, ny, nx)` (z-first). Access as `phi[iz, iy, ix]`.
+- **AMReX initialize/finalize:** Always wrap AMReX code in `try/finally` with `amr.finalize()`.
+- **No AMReX for testing:** The geometry classes and `sample_levelset_*` functions work without AMReX. Use them freely in unit tests.
+- **Chaining transforms:**
+  ```python
+  shape = Sphere3D(0.3).translate(0.5, 0, 0).rotate_z(np.pi/4).scale(1.2)
+  ```
