@@ -625,7 +625,7 @@ def sdHexagon2D(p: _F, r: float) -> _F:
     return length(vec2(px, py)) * np.sign(py)
 
 
-def sdOctogon2D(p: _F, r: float) -> _F:
+def sdOctagon2D(p: _F, r: float) -> _F:
     """2-D regular octagon with inradius *r*."""
     k  = np.array([-0.9238795325, 0.3826834323, 0.4142135623])
     px = np.abs(p[..., 0])

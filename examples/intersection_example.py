@@ -1,185 +1,91 @@
-"""
-Intersection Example: Two overlapping spheres
+"""Intersection of two overlapping spheres.
 
-Mathematical expectation:
-- Two spheres: S1 at (0, 0, 0) radius 0.35, S2 at (0.2, 0, 0) radius 0.35
-- Intersection = max(S1, S2) at each point
-- At origin (0,0,0):
-  - S1 distance = 0 - 0.35 = -0.35 (inside)
-  - S2 distance = sqrt(0.2^2) - 0.35 = 0.2 - 0.35 = -0.15 (inside)
-  - Intersection = max(-0.35, -0.15) = -0.15 (inside, but less negative)
-- At (0.1, 0, 0) (midpoint):
-  - S1 distance = sqrt(0.1^2) - 0.35 = 0.1 - 0.35 = -0.25 (inside)
-  - S2 distance = sqrt(0.1^2) - 0.35 = -0.25 (inside)
-  - Intersection = max(-0.25, -0.25) = -0.25 (inside)
-- Far outside: both positive, intersection = max(positive, positive) = positive
-"""
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+Demonstrates: Intersection3D, sample_levelset_3d
+Output:       examples/intersection_example.png
 
-import amrex.space3d as amr
-from sdf3d import SDFLibrary
+Mathematical identity verified:
+    Intersection(A, B)(p) == max(A(p), B(p))
+"""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
-import os
+from sdf3d import Sphere3D, Intersection3D, sample_levelset_3d
 
-try:
-    from skimage import measure
-    import plotly.graph_objects as go
-    HAS_VIZ = True
-except ImportError:
-    HAS_VIZ = False
-    print("⚠️  plotly/scikit-image not available, skipping 3D visualization")
+_BOUNDS = ((-1.0, 1.0), (-1.0, 1.0), (-1.0, 1.0))
+_RES    = (64, 64, 64)
+_OUT    = os.path.join(os.path.dirname(__file__), "intersection_example.png")
 
 
-def gather_multifab_to_array(mf, shape):
-    """Convert MultiFab to full numpy array"""
-    full = np.zeros(shape, dtype=np.float32)
-    for mfi in mf:
-        arr = mf.array(mfi).to_numpy()
-        vals = arr[..., 0] if arr.ndim == 4 else arr[..., 0, 0]
-        bx = mfi.validbox()
-        i_lo, j_lo, k_lo = bx.lo_vect
-        i_hi, j_hi, k_hi = bx.hi_vect
-        full[k_lo:k_hi+1, j_lo:j_hi+1, i_lo:i_hi+1] = vals
-    return full
-
-
-def save_3d_html(values, name, bounds, out_dir="outputs/vis3d_plotly"):
-    """Generate interactive 3D HTML visualization using plotly"""
-    if not HAS_VIZ:
+def _render_png(phi, out_path, title=""):
+    try:
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        from skimage import measure
+    except ImportError:
+        print("  scikit-image / matplotlib not available — skipping PNG")
         return
-    
-    os.makedirs(out_dir, exist_ok=True)
-    lo, hi = bounds
-    spacing = (hi - lo) / values.shape[0]
-    
-    verts, faces, _, _ = measure.marching_cubes(
-        values, level=0.0, spacing=(spacing, spacing, spacing)
-    )
-    verts += np.array([lo, lo, lo])
-    
-    # Filter out small disconnected fragments (artifacts from low resolution)
-    if len(verts) > 0 and len(faces) > 0:
-        vertex_face_count = np.zeros(len(verts))
-        for face in faces:
-            vertex_face_count[face] += 1
-        
-        # Keep vertices that appear in at least 2 faces (removes tiny fragments)
-        min_faces = max(2, int(len(faces) / len(verts) * 0.1))  # Adaptive threshold
-        valid_vertices = vertex_face_count >= min_faces
-        
-        if valid_vertices.sum() > len(verts) * 0.3:  # Only filter if we keep >30% of vertices
-            # Remap vertex indices
-            vertex_map = np.full(len(verts), -1, dtype=int)
-            new_idx = 0
-            for i, valid in enumerate(valid_vertices):
-                if valid:
-                    vertex_map[i] = new_idx
-                    new_idx += 1
-            
-            # Filter faces: keep only faces where all vertices are valid
-            valid_faces = valid_vertices[faces].all(axis=1)
-            faces = faces[valid_faces]
-            
-            # Remap vertex indices in faces
-            faces = np.array([[vertex_map[v] for v in face] for face in faces])
-            
-            # Filter vertices
-            verts = verts[valid_vertices]
-    
-    i, j, k = faces.T
-    
-    fig = go.Figure(data=[
-        go.Mesh3d(
-            x=verts[:, 2], y=verts[:, 1], z=verts[:, 0],
-            i=i, j=j, k=k, opacity=1.0, color='lightblue', flatshading=True
-        )
-    ])
-    
-    fig.update_layout(
-        title=f"{name} (SDF=0 isosurface)",
-        scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z", aspectmode="cube"),
-        margin=dict(l=0, r=0, b=0, t=40)
-    )
-    
-    out_path = os.path.join(out_dir, f"{name}_3d.html")
-    fig.write_html(out_path)
-    print(f"✅ Interactive 3D visualization: {out_path}")
+
+    lo = _BOUNDS[0][0]
+    spacing = (_BOUNDS[0][1] - lo) / phi.shape[0]
+    if phi.min() >= 0 or phi.max() <= 0:
+        print("  No zero crossing — cannot render isosurface.")
+        return
+
+    verts, faces, _, _ = measure.marching_cubes(phi, level=0, spacing=(spacing,) * 3)
+    verts += lo
+
+    tris  = verts[faces]
+    norms = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+    nlen  = np.linalg.norm(norms, axis=1, keepdims=True)
+    norms = norms / np.where(nlen > 0, nlen, 1.0)
+    shade = 0.3 + 0.7 * np.clip(norms @ np.array([0.577, 0.577, 0.577]), 0, 1)
+    fc    = np.column_stack([shade * 0.3, shade * 0.7, shade * 1.0, np.ones_like(shade)])
+
+    fig = plt.figure(figsize=(5, 5), facecolor="#111")
+    ax  = fig.add_subplot(111, projection="3d")
+    ax.set_facecolor("#111"); ax.set_axis_off(); ax.set_box_aspect([1, 1, 1])
+    ax.add_collection3d(Poly3DCollection(verts[faces], facecolors=fc, edgecolors="none"))
+    hi = _BOUNDS[0][1]
+    ax.set_xlim(lo, hi); ax.set_ylim(lo, hi); ax.set_zlim(lo, hi)
+    ax.set_title(title, color="white", fontsize=10)
+    plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="#111")
+    plt.close()
+    print(f"  Saved: {out_path}")
 
 
 def main():
-    amr.initialize([])
-    try:
-        # Setup grid (higher resolution for better visualization)
-        real_box = amr.RealBox([-1, -1, -1], [1, 1, 1])
-        domain = amr.Box(amr.IntVect(0, 0, 0), amr.IntVect(127, 127, 127))  # 128^3 for smoother visualization
-        geom = amr.Geometry(domain, real_box, 0, [0, 0, 0])
-        ba = amr.BoxArray(domain)
-        ba.max_size(32)
-        dm = amr.DistributionMapping(ba)
+    print("=" * 60)
+    print("INTERSECTION: two overlapping spheres")
+    print("  S1: centre (0,   0, 0)  radius 0.35")
+    print("  S2: centre (0.2, 0, 0)  radius 0.35")
+    print("=" * 60)
 
-        lib = SDFLibrary(geom, ba, dm)
+    s1 = Sphere3D(0.35)
+    s2 = Sphere3D(0.35).translate(0.2, 0.0, 0.0)
+    geom = Intersection3D(s1, s2)
 
-        # Create two overlapping spheres
-        s1 = lib.sphere(center=(0.0, 0.0, 0.0), radius=0.35)
-        s2 = lib.sphere(center=(0.2, 0.0, 0.0), radius=0.35)
-        inter = lib.intersect(s1, s2)
+    phi    = sample_levelset_3d(geom, _BOUNDS, _RES)
+    phi_s1 = sample_levelset_3d(s1,   _BOUNDS, _RES)
+    phi_s2 = sample_levelset_3d(s2,   _BOUNDS, _RES)
 
-        # Gather values
-        all_vals = []
-        for mfi in inter:
-            arr = inter.array(mfi).to_numpy()
-            vals = arr[..., 0] if arr.ndim == 4 else arr[..., 0, 0]
-            all_vals.append(vals.flatten())
-        phi = np.concatenate(all_vals)
+    # --- mathematical verification ---
+    expected = np.maximum(phi_s1, phi_s2)
+    max_diff = np.abs(phi - expected).max()
 
-        print("=" * 60)
-        print("INTERSECTION EXAMPLE: Two overlapping spheres")
-        print("=" * 60)
-        print(f"Min value (should be < 0, inside overlap): {phi.min():.6f}")
-        print(f"Max value (should be > 0, outside both): {phi.max():.6f}")
-        print(f"Has negative values (inside): {(phi < 0).any()}")
-        print(f"Has positive values (outside): {(phi > 0).any()}")
+    print(f"\nSDF range : [{phi.min():.4f}, {phi.max():.4f}]")
+    print(f"Inside (phi<0): {(phi < 0).any()}   Outside (phi>0): {(phi > 0).any()}")
+    print(f"max |Intersection - max(S1,S2)| = {max_diff:.2e}  (should be ~0)")
 
-        # Mathematical check: intersection should be >= max of individual spheres
-        s1_vals = []
-        s2_vals = []
-        for mfi in s1:
-            arr = s1.array(mfi).to_numpy()
-            vals = arr[..., 0] if arr.ndim == 4 else arr[..., 0, 0]
-            s1_vals.append(vals.flatten())
-        for mfi in s2:
-            arr = s2.array(mfi).to_numpy()
-            vals = arr[..., 0] if arr.ndim == 4 else arr[..., 0, 0]
-            s2_vals.append(vals.flatten())
-        s1_phi = np.concatenate(s1_vals)
-        s2_phi = np.concatenate(s2_vals)
+    # --- spot check: origin is inside both spheres ---
+    p = np.array([[[0.0, 0.0, 0.0]]])
+    v_s1 = float(s1.sdf(p).flat[0]); v_s2 = float(s2.sdf(p).flat[0]); v_i = float(geom.sdf(p).flat[0])
+    print(f"\nAt origin: S1={v_s1:.4f}  S2={v_s2:.4f}  Intersection={v_i:.4f}  (expected {max(v_s1,v_s2):.4f})")
 
-        expected_inter = np.maximum(s1_phi, s2_phi)
-        max_diff = np.abs(phi - expected_inter).max()
-        print(f"Max difference from expected (max(s1, s2)): {max_diff:.6e}")
-        
-        # Generate 3D visualization
-        if HAS_VIZ:
-            n = 128  # Higher resolution to reduce artifacts
-            full_array = gather_multifab_to_array(inter, (n, n, n))
-            save_3d_html(full_array, "intersection_example", (-1, 1))
+    ok = max_diff < 1e-5 and phi.min() < 0 and phi.max() > 0
+    print("\n" + ("PASSED PASSED" if ok else "FAILED FAILED"))
 
-        success = (
-            phi.min() < 0 and
-            phi.max() > 0 and
-            max_diff < 1e-5  # Should match exactly
-        )
-        print("\n" + "=" * 60)
-        if success:
-            print("✅ INTERSECTION TEST PASSED: Matches max(S1, S2) exactly")
-        else:
-            print("❌ INTERSECTION TEST FAILED")
-        print("=" * 60)
-
-    finally:
-        amr.finalize()
+    _render_png(phi, _OUT, "Intersection: S1 intersect S2")
 
 
 if __name__ == "__main__":

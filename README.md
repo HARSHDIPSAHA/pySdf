@@ -9,17 +9,13 @@ boxes, distribute those boxes, and store the SDF values in a `MultiFab`.
 formulas are referenced from
 [iquilezles.org](https://iquilezles.org/articles/distfunctions/).
 
-
-<img width="746" height="636" alt="Screenshot 2026-02-03 191159" src="https://github.com/user-attachments/assets/1ca854f8-edfe-4094-8316-355e621f5056" />
-
-⚠️ WARNING: This branch is a work in progress and mostly vibe-coded. Todolist:
+⚠️ Todolist:
 - EqTriangle, TriangleIsosceles, Hexagram, RoundedCross, Egg, Heart, Cross, Ellipse, Parabola, Stairs, QuadraticCircle, Hyperbola; these do not render properly in the gallery, and many of their formulas had to deviate from the original iquilez formulas to avoid NaNs or other issues.
-- Some of the renders in gallery_3d render as elongated spheroids instead of spheres.
-- The scripts running in the examples folder do not work anymore; needs updating.
+- Have to split tests/test_sdf_lib.py into 2D and 3D test files, then finally delete sdf_lib.py and run verification
 
 ## Installation
 
-### Core library (NumPy only — no AMReX required)
+### Core library (NumPy only, no AMReX required)
 
 ```bash
 pip install -e .

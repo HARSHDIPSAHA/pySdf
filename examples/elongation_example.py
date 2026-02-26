@@ -1,160 +1,101 @@
-"""
-Elongation Example: Elongated sphere using geometry API
+"""Elongation: sphere stretched into a capsule.
 
-Mathematical expectation:
-- Base sphere radius 0.25
-- Elongated by (0.3, 0.0, 0.0) in x-direction
-- Elongation operation: q = p - clamp(p, -h, h), then evaluate sphere(q)
-- At origin (0,0,0):
-  - q = (0,0,0) - clamp((0,0,0), (-0.3,0,0), (0.3,0,0)) = (0,0,0) - (0,0,0) = (0,0,0)
-  - Distance = 0 - 0.25 = -0.25 (inside)
-- At (0.4, 0, 0) (beyond elongation):
-  - q = (0.4,0,0) - clamp((0.4,0,0), (-0.3,0,0), (0.3,0,0)) = (0.4,0,0) - (0.3,0,0) = (0.1,0,0)
-  - Distance = 0.1 - 0.25 = -0.15 (still inside elongated shape)
-- At (0.5, 0, 0):
-  - q = (0.5,0,0) - (0.3,0,0) = (0.2,0,0)
-  - Distance = 0.2 - 0.25 = -0.05 (inside)
-- At (0.3, 0, 0) (at elongation boundary):
-  - q = (0.3,0,0) - (0.3,0,0) = (0,0,0)
-  - Distance = 0 - 0.25 = -0.25 (inside)
+Demonstrates: Sphere3D.elongate(), sample_levelset_3d
+Output:       examples/elongation_example.png
+
+Elongation formula:
+    q = p - clamp(p, -h, h)      (collapse the middle band to the sphere)
+    phi_elongated(p) = phi_sphere(q)
+
+This preserves the SDF metric: the distance gradient magnitude stays 1
+everywhere, making the result a true signed distance function.
 """
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
-from sdf3d import Sphere, sample_levelset
+from sdf3d import Sphere3D, sample_levelset_3d
 
-try:
-    from skimage import measure
-    import plotly.graph_objects as go
-    HAS_VIZ = True
-except ImportError:
-    HAS_VIZ = False
-    print("⚠️  plotly/scikit-image not available, skipping 3D visualization")
+_BOUNDS = ((-1.0, 1.0), (-1.0, 1.0), (-1.0, 1.0))
+_RES    = (64, 64, 64)
+_OUT    = os.path.join(os.path.dirname(__file__), "elongation_example.png")
 
 
-def save_3d_html(values, name, bounds, out_dir="outputs/vis3d_plotly"):
-    """Generate interactive 3D HTML visualization using plotly"""
-    if not HAS_VIZ:
+def _render_png(phi, out_path, title=""):
+    try:
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        from skimage import measure
+    except ImportError:
+        print("  scikit-image / matplotlib not available — skipping PNG")
         return
-    
-    os.makedirs(out_dir, exist_ok=True)
-    lo, hi = bounds
-    spacing = (hi - lo) / values.shape[0]
-    
-    verts, faces, _, _ = measure.marching_cubes(
-        values, level=0.0, spacing=(spacing, spacing, spacing)
-    )
-    verts += np.array([lo, lo, lo])
-    
-    # Filter out small disconnected fragments (artifacts from low resolution)
-    if len(verts) > 0 and len(faces) > 0:
-        vertex_face_count = np.zeros(len(verts))
-        for face in faces:
-            vertex_face_count[face] += 1
-        
-        # Keep vertices that appear in at least 2 faces (removes tiny fragments)
-        min_faces = max(2, int(len(faces) / len(verts) * 0.1))  # Adaptive threshold
-        valid_vertices = vertex_face_count >= min_faces
-        
-        if valid_vertices.sum() > len(verts) * 0.3:  # Only filter if we keep >30% of vertices
-            # Remap vertex indices
-            vertex_map = np.full(len(verts), -1, dtype=int)
-            new_idx = 0
-            for i, valid in enumerate(valid_vertices):
-                if valid:
-                    vertex_map[i] = new_idx
-                    new_idx += 1
-            
-            # Filter faces: keep only faces where all vertices are valid
-            valid_faces = valid_vertices[faces].all(axis=1)
-            faces = faces[valid_faces]
-            
-            # Remap vertex indices in faces
-            faces = np.array([[vertex_map[v] for v in face] for face in faces])
-            
-            # Filter vertices
-            verts = verts[valid_vertices]
-    
-    i, j, k = faces.T
-    
-    fig = go.Figure(data=[
-        go.Mesh3d(
-            x=verts[:, 2], y=verts[:, 1], z=verts[:, 0],
-            i=i, j=j, k=k, opacity=1.0, color='limegreen', flatshading=True
-        )
-    ])
-    
-    fig.update_layout(
-        title=f"{name} (SDF=0 isosurface)",
-        scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z", aspectmode="cube"),
-        margin=dict(l=0, r=0, b=0, t=40)
-    )
-    
-    out_path = os.path.join(out_dir, f"{name}_3d.html")
-    fig.write_html(out_path)
-    print(f"✅ Interactive 3D visualization: {out_path}")
+
+    lo = _BOUNDS[0][0]
+    spacing = (_BOUNDS[0][1] - lo) / phi.shape[0]
+    if phi.min() >= 0 or phi.max() <= 0:
+        print("  No zero crossing — cannot render isosurface.")
+        return
+
+    verts, faces, _, _ = measure.marching_cubes(phi, level=0, spacing=(spacing,) * 3)
+    verts += lo
+
+    tris  = verts[faces]
+    norms = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+    nlen  = np.linalg.norm(norms, axis=1, keepdims=True)
+    norms = norms / np.where(nlen > 0, nlen, 1.0)
+    shade = 0.3 + 0.7 * np.clip(norms @ np.array([0.577, 0.577, 0.577]), 0, 1)
+    fc    = np.column_stack([shade * 0.3, shade * 0.9, shade * 0.4, np.ones_like(shade)])
+
+    fig = plt.figure(figsize=(5, 5), facecolor="#111")
+    ax  = fig.add_subplot(111, projection="3d")
+    ax.set_facecolor("#111"); ax.set_axis_off(); ax.set_box_aspect([1, 1, 1])
+    ax.add_collection3d(Poly3DCollection(verts[faces], facecolors=fc, edgecolors="none"))
+    hi = _BOUNDS[0][1]
+    ax.set_xlim(lo, hi); ax.set_ylim(lo, hi); ax.set_zlim(lo, hi)
+    ax.set_title(title, color="white", fontsize=10)
+    plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="#111")
+    plt.close()
+    print(f"  Saved: {out_path}")
 
 
 def main():
+    R = 0.25
+    H = 0.30   # elongation half-length along X
+
     print("=" * 60)
-    print("ELONGATION EXAMPLE: Sphere elongated in x-direction")
+    print(f"ELONGATION: sphere (r={R}) elongated along X by h={H}")
+    print(f"  Result is a capsule spanning X in [{-(R+H):.2f}, {R+H:.2f}]")
     print("=" * 60)
 
-    # Create elongated sphere using geometry API
-    sphere = Sphere(0.25)
-    elongated = sphere.elongate(0.3, 0.0, 0.0)
+    sphere    = Sphere3D(R)
+    elongated = sphere.elongate(H, 0.0, 0.0)
 
-    # Sample on grid (higher resolution for better visualization)
-    bounds = ((-1.0, 1.0), (-1.0, 1.0), (-1.0, 1.0))
-    res = (128, 128, 128)  # Higher resolution to reduce artifacts
-    phi = sample_levelset(elongated, bounds, res)
+    phi = sample_levelset_3d(elongated, _BOUNDS, _RES)
 
-    print(f"Min value (should be < 0, inside): {phi.min():.6f}")
-    print(f"Max value (should be > 0, outside): {phi.max():.6f}")
-    print(f"Has negative values (inside): {(phi < 0).any()}")
-    print(f"Has positive values (outside): {(phi > 0).any()}")
+    print(f"\nSDF range : [{phi.min():.4f}, {phi.max():.4f}]")
+    print(f"Inside (phi<0): {(phi < 0).any()}   Outside (phi>0): {(phi > 0).any()}")
 
-    # Mathematical verification at specific points
-    # Grid coordinates: cell centers
-    dx = (bounds[0][1] - bounds[0][0]) / res[0]
-    coords = np.linspace(bounds[0][0] + dx/2, bounds[0][1] - dx/2, res[0])
+    # --- spot checks ---
+    # At origin: q=(0,0,0) -> sphere gives -R
+    p0 = np.array([[[0.0, 0.0, 0.0]]])
+    print(f"\nAt origin (expected ~ {-R:.2f}):    phi = {float(elongated.sdf(p0).flat[0]):.4f}")
 
-    # Find index closest to origin
-    origin_idx = np.argmin(np.abs(coords))
-    origin_val = phi[origin_idx, origin_idx, origin_idx]
-    print(f"\nValue at origin (expected ~ -0.25): {origin_val:.6f}")
+    # At (H, 0, 0): q=(0,0,0) -> same as origin
+    p1 = np.array([[[H, 0.0, 0.0]]])
+    print(f"At (H, 0, 0) (expected ~ {-R:.2f}): phi = {float(elongated.sdf(p1).flat[0]):.4f}")
 
-    # Find index closest to (0.3, 0, 0)
-    x03_idx = np.argmin(np.abs(coords - 0.3))
-    val_at_03 = phi[x03_idx, origin_idx, origin_idx]
-    print(f"Value at (0.3, 0, 0) (expected ~ -0.25): {val_at_03:.6f}")
+    # At (H+R, 0, 0): on the surface -> 0
+    p2 = np.array([[[H + R, 0.0, 0.0]]])
+    print(f"At (H+R, 0, 0) (expected ~  0.00): phi = {float(elongated.sdf(p2).flat[0]):.4f}")
 
-    # Find index closest to (0.5, 0, 0)
-    x05_idx = np.argmin(np.abs(coords - 0.5))
-    val_at_05 = phi[x05_idx, origin_idx, origin_idx]
-    print(f"Value at (0.5, 0, 0) (expected ~ -0.05): {val_at_05:.6f}")
+    # At (H+R+0.1, 0, 0): just outside -> +0.1
+    p3 = np.array([[[H + R + 0.1, 0.0, 0.0]]])
+    print(f"At (H+R+0.1, 0, 0) (expected ~ +0.10): phi = {float(elongated.sdf(p3).flat[0]):.4f}")
 
-    # Success criteria
-    success = (
-        phi.min() < 0 and
-        phi.max() > 0 and
-        (phi < 0).any() and
-        (phi > 0).any() and
-        origin_val < -0.2 and origin_val > -0.3  # Should be inside
-    )
+    ok = phi.min() < -R * 0.8 and phi.max() > 0
+    print("\n" + ("PASSED PASSED" if ok else "FAILED FAILED"))
 
-    print("\n" + "=" * 60)
-    if success:
-        print("✅ ELONGATION TEST PASSED: Values match expected behavior")
-    else:
-        print("❌ ELONGATION TEST FAILED")
-    print("=" * 60)
-    
-    # Generate 3D visualization
-    if HAS_VIZ:
-        save_3d_html(phi, "elongation_example", bounds[0])
+    _render_png(phi, _OUT, f"Elongation: sphere r={R}, h={H}")
 
 
 if __name__ == "__main__":

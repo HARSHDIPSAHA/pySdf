@@ -182,8 +182,6 @@ from sdf2d import (
 | `QuadraticCircle2D` | `QuadraticCircle2D()` |
 | `Hyperbola2D` | `Hyperbola2D(k, he)` |
 
-> **Note:** `Octogon2D` is an alias for `Octagon2D` (backward compatibility for the old spelling).
-
 ### Boolean operations
 
 ```python
@@ -367,8 +365,6 @@ mf = lib.intersect(mf1, mf2)
 mf = lib.negate(mf)
 ```
 
----
-
 ## AMReX integration
 
 Both `SDFLibrary2D` and `SDFLibrary3D` require AMReX to be installed and initialized before use:
@@ -405,8 +401,6 @@ for mfi in mf:
     arr = mf.array(mfi).to_numpy()
     phi = arr[..., 0]   # shape (ny, nx[, nz]) — one SDF component, no ghost cells
 ```
-
----
 
 ## Low-level math — `sdf_lib`
 

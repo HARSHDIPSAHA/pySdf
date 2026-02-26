@@ -7,7 +7,7 @@ from typing import Callable, Sequence, Tuple
 import numpy as np
 import numpy.typing as npt
 
-import sdf_lib as sdf
+from . import sdf_lib as sdf
 
 # ---------------------------------------------------------------------------
 # Type aliases

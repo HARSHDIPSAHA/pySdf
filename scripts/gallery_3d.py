@@ -26,7 +26,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-import sdf_lib as sdf
+from sdf3d import sdf_lib as sdf
+from sdf3d.examples import NATOFragment, RocketAssembly
+
+
+# ---------------------------------------------------------------------------
+# Minimal stand-in for SDFLibrary3D (no AMReX required)
+# ---------------------------------------------------------------------------
+
+class _MockLib:
+    def from_geometry(self, geom):
+        return geom
 
 
 # ---------------------------------------------------------------------------
@@ -164,8 +174,32 @@ def _make_shapes() -> list[tuple[str, object]]:
          lambda p: sdf.opCheapBend(p, base_round_box, 5.0)),
         ("opTx",
          lambda p: sdf.opTx(p, rot_z(np.deg2rad(30.)), np.array([0.1, 0.1, 0.]), base_box)),
+        # --- examples ---
+        # NATOFragment: diameter=0.3 → total_length=0.75; shift by -0.375 to centre in Z
+        *_make_example_shapes(),
     ]
     return shapes
+
+
+def _make_example_shapes() -> list[tuple[str, object]]:
+    lib = _MockLib()
+
+    # NATOFragment: diameter=0.3 → spans Z=[0, 0.75]; centre at Z=0.375
+    _, nato_geom = NATOFragment(lib, diameter=0.3)
+    _nato_offset = np.array([0.0, 0.0, -0.375])
+    nato_func = lambda p: nato_geom.sdf(p - _nato_offset)
+
+    # RocketAssembly: scaled down to fit in [-0.55, 0.55] domain
+    _, rocket_geom = RocketAssembly(
+        lib, body_radius=0.08, L_extra=0.18, nose_len=0.12,
+        fin_span=0.06, fin_height=0.08, fin_thickness=0.018,
+    )
+    rocket_func = lambda p: rocket_geom.sdf(p)
+
+    return [
+        ("NATOFragment", nato_func),
+        ("RocketAssembly", rocket_func),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -249,6 +283,7 @@ def render_gallery(shapes, out_path: str, ncols: int = 8, res: int = 80) -> None
 
         lo, hi = -0.55, 0.55
         ax.set_xlim(lo, hi); ax.set_ylim(lo, hi); ax.set_zlim(lo, hi)
+        ax.set_box_aspect([1, 1, 1])
         ax.view_init(elev=_VIEW_ELEV, azim=_VIEW_AZIM)
 
     # Hide empty trailing axes (subplot adds blank ones automatically in some mpl versions)

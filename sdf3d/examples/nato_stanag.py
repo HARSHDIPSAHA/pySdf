@@ -14,7 +14,7 @@ from typing import Tuple, TYPE_CHECKING
 
 import numpy as np
 
-import sdf_lib as sdf
+from .. import sdf_lib as sdf
 from sdf3d.geometry import Cylinder3D, Box3D, Intersection3D, Union3D, Geometry3D
 
 if TYPE_CHECKING:

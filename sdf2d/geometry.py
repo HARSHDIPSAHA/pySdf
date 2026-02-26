@@ -7,7 +7,7 @@ from typing import Callable, Sequence
 import numpy as np
 import numpy.typing as npt
 
-import sdf_lib as sdf
+from . import sdf_lib as sdf
 
 # ---------------------------------------------------------------------------
 # Type aliases
@@ -233,16 +233,13 @@ class Hexagon2D(Geometry2D):
 
 
 class Octagon2D(Geometry2D):
-    """Regular octagon with circumradius *radius*.
-
-    (Previously misspelled as ``Octogon2D``.)
-    """
+    """Regular octagon with circumradius *radius*."""
 
     def __init__(self, radius: float) -> None:
-        super().__init__(lambda p: sdf.sdOctogon2D(p, radius))
+        super().__init__(lambda p: sdf.sdOctagon2D(p, radius))
 
 
-# Backward-compatibility alias
+# Backward-compat alias for old misspelling
 Octogon2D = Octagon2D
 
 
