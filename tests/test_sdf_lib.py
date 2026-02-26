@@ -338,7 +338,7 @@ class TestPentagon2D:
 
 class TestOctagon2D:
     def test_inside(self):
-        assert sdf.sdOctogon2D(_p2(0, 0), 0.3)[0] < 0
+        assert sdf.sdOctagon2D(_p2(0, 0), 0.3)[0] < 0
 
 
 class TestNGon2D:

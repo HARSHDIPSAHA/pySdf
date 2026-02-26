@@ -47,7 +47,6 @@ pySdf/
 
 - 3D geometry: `Sphere3D`, `Box3D`, `Union3D`, `Intersection3D`, `Subtraction3D`
 - 2D geometry: `Circle2D`, `Box2D`, `Union2D`, `Intersection2D`, `Subtraction2D`
-- `Octogon2D` is a backward-compat alias for `Octagon2D` (old misspelling kept)
 - Grid functions: `sample_levelset_2d` / `sample_levelset_3d`
 - AMReX classes: `SDFLibrary2D` / `SDFLibrary3D`
 
@@ -88,7 +87,7 @@ Or build from source: https://pyamrex.readthedocs.io/en/latest/install/cmake.htm
 ### GLSL-to-numpy simultaneous update
 `p -= 2.0*min(dot(k,p),0.0)*k` in GLSL updates both components simultaneously.
 Python sequential `px=...; py=...` is wrong. Fix: compute scalar once, then apply.
-Affects: `sdPentagon2D`, `sdHexagon2D`, `sdOctogon2D`, `sdHexagram2D`, `sdStar5`
+Affects: `sdPentagon2D`, `sdHexagon2D`, `sdOctagon2D`, `sdHexagram2D`, `sdStar5`
 
 ### np.where evaluates both branches
 `np.where(cond, A, B)` computes both A and B for all elements. Operations like

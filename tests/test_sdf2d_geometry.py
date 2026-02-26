@@ -17,7 +17,7 @@ from sdf2d import (
     Rhombus2D, Trapezoid2D, Parallelogram2D,
     EquilateralTriangle2D, TriangleIsosceles2D, Triangle2D,
     UnevenCapsule2D,
-    Pentagon2D, Hexagon2D, Octagon2D, Octogon2D, NGon2D,
+    Pentagon2D, Hexagon2D, Octagon2D, NGon2D,
     Hexagram2D, Star5_2D, Star2D,
     Pie2D, CutDisk2D, Arc2D, Ring2D, Horseshoe2D,
     Vesica2D, Moon2D, RoundedCross2D, Egg2D, Heart2D, Cross2D, RoundedX2D,
@@ -182,9 +182,6 @@ class TestHexagon2D_:
 class TestOctagon2D_:
     def test_inside(self):
         assert Octagon2D(0.3).sdf(_p(0, 0))[0] < 0
-
-    def test_alias(self):
-        assert Octogon2D(0.3).sdf(_p(0, 0))[0] < 0
 
 
 class TestNGon2D_:

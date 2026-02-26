@@ -9,6 +9,7 @@ formulas are referenced from
 
 ⚠️ TODO list (in order of when to tackle):
 - Split tests/test_sdf_lib.py into 2D and 3D test files, then finally delete sdf_lib.py and run verification, and then update CLAUDE.md.
+- Rename `sdf_lib.py` in both folders to something else, since it's not really a library but just a collection of formulas. Maybe `sdf_formulas.py` or `sdf_primitives.py`?
 - EqTriangle, TriangleIsosceles, Hexagram, RoundedCross, Egg, Heart, Cross, Ellipse, Parabola, Stairs, QuadraticCircle, Hyperbola; these do not render properly in the gallery, and many of their formulas had to deviate from the original iquilez formulas to avoid NaNs or other issues.
 - Use agent to check all formulas against the website.
 - Use code review agent for general problems.

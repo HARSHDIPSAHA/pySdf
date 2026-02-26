@@ -14,15 +14,8 @@ https://iquilezles.org/articles/distfunctions2d/
 from __future__ import annotations
 
 import numpy as np
-import numpy.typing as npt
 
 from _sdf_common import *  # noqa: F401, F403  — re-export shared helpers
-from _sdf_common import _F  # explicit import so _F is available for annotations
-
-# ---------------------------------------------------------------------------
-# Type alias (re-declared so type-checkers see it in this module's namespace)
-# ---------------------------------------------------------------------------
-_F = npt.NDArray[np.floating]
 
 
 # ===========================================================================
@@ -183,10 +176,6 @@ def sdOctagon2D(p: _F, r: float) -> _F:
     px = px - clamp(px, -k[2] * r, k[2] * r)
     py = py - r
     return length(vec2(px, py)) * np.sign(py)
-
-
-# Backward-compat alias for old misspelling
-sdOctogon2D = sdOctagon2D
 
 
 def sdHexagram2D(p: _F, r: float) -> _F:

@@ -239,10 +239,6 @@ class Octagon2D(Geometry2D):
         super().__init__(lambda p: sdf.sdOctagon2D(p, radius))
 
 
-# Backward-compat alias for old misspelling
-Octogon2D = Octagon2D
-
-
 class NGon2D(Geometry2D):
     """Regular N-sided polygon with *n_sides* and circumradius *radius*."""
 

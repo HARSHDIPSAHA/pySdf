@@ -67,7 +67,6 @@ from .geometry import (
     Pentagon2D,
     Hexagon2D,
     Octagon2D,
-    Octogon2D,   # backward-compat alias
     NGon2D,
 
     # Stars
@@ -140,7 +139,6 @@ __all__ = [
     "Pentagon2D",
     "Hexagon2D",
     "Octagon2D",
-    "Octogon2D",
     "NGon2D",
 
     # Stars

@@ -156,10 +156,6 @@ class TestOctagon2D:
     def test_inside(self):
         assert sdf.sdOctagon2D(_p2(0, 0), 0.3)[0] < 0
 
-    def test_alias(self):
-        # sdOctogon2D is a backward-compat alias for sdOctagon2D
-        assert sdf.sdOctogon2D(_p2(0, 0), 0.3)[0] < 0
-
 
 class TestNGon2D:
     def test_inside(self):
