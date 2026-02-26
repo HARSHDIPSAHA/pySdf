@@ -1,17 +1,23 @@
 # Signed Distance Functions with pyAMReX
 
-This repo implements the signed distance functions and operators listed on
-the Inigo Quilez "Distance Functions" article, and evaluates them with
-pyAMReX on a 2D grid (z = 0 slice) to generate visualization PNGs. The
+This repo implements the signed distance functions and operators. The
 visualization workflow uses pyAMReX to build a structured grid, split it into
 boxes, distribute those boxes, and store the SDF values in a `MultiFab`.
 [pyAMReX](https://pyamrex.readthedocs.io/en/latest/) and the original SDF
 formulas are referenced from
 [iquilezles.org](https://iquilezles.org/articles/distfunctions/).
 
-⚠️ Todolist:
+⚠️ TODO list (in order of when to tackle):
+- Split tests/test_sdf_lib.py into 2D and 3D test files, then finally delete sdf_lib.py and run verification, and then update CLAUDE.md.
 - EqTriangle, TriangleIsosceles, Hexagram, RoundedCross, Egg, Heart, Cross, Ellipse, Parabola, Stairs, QuadraticCircle, Hyperbola; these do not render properly in the gallery, and many of their formulas had to deviate from the original iquilez formulas to avoid NaNs or other issues.
-- Have to split tests/test_sdf_lib.py into 2D and 3D test files, then finally delete sdf_lib.py and run verification
+- Use agent to check all formulas against the website.
+- Use code review agent for general problems.
+- Ask agent to create a linear walkthrough of the library in WALKTHROUGH.md.
+- Create new powerpoint
+- Add this project to pypi?
+- Merge to main.
+- Add feature to convert stls to sdfs.
+- Add mesh hierarchy feature.
 
 ## Installation
 
