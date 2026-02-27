@@ -9,10 +9,9 @@ formulas are referenced from
 
 ⚠️ TODO list (in order of when to tackle):
 
-- Create new powerpoint
+- Create new powerpoint?
 - Add this project to pypi?
-- Merge to main.
-- Add feature to convert stls to sdfs.
+- Add feature to convert stls to sdfs as a separate importable library.
 - Add mesh hierarchy feature.
 
 ## Installation
