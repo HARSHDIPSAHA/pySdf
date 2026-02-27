@@ -9,14 +9,9 @@ formulas are referenced from
 
 ⚠️ TODO list (in order of when to tackle):
 
-- currently the cells in the 3D renders of gallery_3d.png have a lot of empty space; expand each render inside its cell, without affecting its shape. This is a visualization issue, not a geometry issue, so modify scripts/gallery_3d.py to fix this.
-
-- Use code review agent for general problems. Ask it to ignore backwards compatibility for the sake of cleaniless.
-- Ask agent to create a linear walkthrough of the library in WALKTHROUGH.md.
 - Create new powerpoint
 - Add this project to pypi?
 - Merge to main.
-- Consult with others to see if the boilerplate in geometry.py can be refactored out by maybe absorbing it into primitives.py?
 - Add feature to convert stls to sdfs.
 - Add mesh hierarchy feature.
 
