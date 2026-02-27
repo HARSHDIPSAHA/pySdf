@@ -8,16 +8,17 @@ formulas are referenced from
 [iquilezles.org](https://iquilezles.org/articles/distfunctions/).
 
 ⚠️ TODO list (in order of when to tackle):
-- Split tests/test_sdf_lib.py into 2D and 3D test files, then finally delete sdf_lib.py and run verification, and then update CLAUDE.md.
-- Rename `sdf_lib.py` in both folders to something else, since it's not really a library but just a collection of formulas. Maybe `sdf_formulas.py` or `sdf_primitives.py`?
-- Ask agent to go through the comments placed in sdf_lib.py inside sdf2d and check the formulas against the original iquilez formulas wherever mentioned.
-- QOL: currently the cells in the 3D renders have a lot of empty space; expand each render inside its cell, without affecting its shape.
+
+- currently the cells in the 3D renders of gallery_3d.png have a lot of empty space; expand each render inside its cell, without affecting its shape. This is a visualization issue, not a geometry issue, so modify scripts/gallery_3d.py to fix this.
+
+- Go through the comments placed in primitives.py inside sdf2d and fix the marked functions. Check the formulas against the original iquilez formulas for them.
+
 - Use code review agent for general problems. Ask it to ignore backwards compatibility for the sake of cleaniless.
 - Ask agent to create a linear walkthrough of the library in WALKTHROUGH.md.
 - Create new powerpoint
 - Add this project to pypi?
 - Merge to main.
-- Consult with others to see if the boilerplate in geometry.py can be refactored out by maybe absorbing it into sdf_lib?
+- Consult with others to see if the boilerplate in geometry.py can be refactored out by maybe absorbing it into primitives.py?
 - Add feature to convert stls to sdfs.
 - Add mesh hierarchy feature.
 
@@ -29,7 +30,7 @@ formulas are referenced from
 pip install -e .
 ```
 
-This gives you full access to `sdf2d`, `sdf3d`, `sdf_lib`, and all tests.
+This gives you full access to `sdf2d`, `sdf3d`, and all tests.
 
 ### With visualization extras (galleries, scikit-image for marching cubes)
 
@@ -89,7 +90,7 @@ After installation, both **2D** (`sdf2d`) and **3D** (`sdf3d`) APIs are availabl
 
 ## Files
 
-- `sdf_lib.py`: numpy implementations of all SDF primitives and operators.
+- `sdf2d/primitives.py`, `sdf3d/primitives.py`: numpy implementations of all SDF primitives and operators.
 - `sdf2d/`: 2D geometry package (`Circle2D`, `Box2D`, `Hexagon2D`, …).
 - `sdf3d/`: 3D geometry package (`Sphere3D`, `Box3D`, `Torus3D`, …).
 - `sdf3d/examples/`: high-level assemblies (`NATOFragment`, `RocketAssembly`).
@@ -105,7 +106,7 @@ Generate a single-page PNG showing every shape in the library:
 # All 43 sdf2d shapes (requires matplotlib only)
 python scripts/gallery_2d.py --out gallery_2d.png
 
-# All sdf_lib 3D primitives (requires matplotlib + scikit-image)
+# All sdf3d 3D primitives (requires matplotlib + scikit-image)
 python scripts/gallery_3d.py --out gallery_3d.png --res 64
 ```
 
@@ -117,9 +118,9 @@ Both scripts run without AMReX.
 
 _Blue = inside (φ < 0), red = outside (φ > 0), white contour = surface (φ = 0)._
 
-### 3D shape gallery (`sdf_lib` 3D primitives)
+### 3D shape gallery (`sdf3d` primitives)
 
-![sdf_lib 3D gallery](gallery_3d.png)
+![sdf3d 3D gallery](gallery_3d.png)
 
 _Gold isosurfaces extracted from 3D SDF grids using marching cubes._
 

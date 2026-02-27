@@ -16,7 +16,7 @@ setup(
     author_email="your.email@example.com",
     url="https://github.com/yourusername/sdf-library",
     packages=find_packages(),  # Automatically finds sdf2d/ and sdf3d/
-    py_modules=["sdf_lib"],  # Include the top-level sdf_lib module
+    py_modules=["_sdf_common"],  # Shared SDF helpers used by sdf2d and sdf3d
     python_requires=">=3.8",
     install_requires=[
         "numpy>=1.20.0",

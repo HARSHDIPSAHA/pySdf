@@ -1,6 +1,6 @@
-"""Tests for sdf2d/sdf_lib.py — 2-D SDF math primitives and operators.
+"""Tests for sdf2d/primitives.py — 2-D SDF math primitives and operators.
 
-Every 2-D function in sdf2d.sdf_lib is tested at least once.  Tests verify:
+Every 2-D function in sdf2d.primitives is tested at least once.  Tests verify:
 - Correct sign (negative inside, positive outside, zero on surface)
 - Exact or near-exact distance at analytically known points
 - Array shape / broadcasting consistency
@@ -10,7 +10,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from sdf2d import sdf_lib as sdf
+from sdf2d import primitives as sdf
 
 
 # ---------------------------------------------------------------------------
@@ -190,10 +190,9 @@ class TestEquilateralTriangle2D:
 
 class TestTriangleIsosceles2D:
     def test_inside(self):
-        # The formula places the apex at (0, q[1]); points just above that line are inside.
-        # Verified empirically: at py=0 result is +q[1] (outside), at py slightly > q[1] result < 0
+        # IQ formula: apex at (0,0), base at y=q[1]; interior is between them
         q = np.array([0.2, 0.4])
-        assert sdf.sdTriangleIsosceles2D(_p2(0, 0.41), q)[0] < 0
+        assert sdf.sdTriangleIsosceles2D(_p2(0, 0.2), q)[0] < 0
 
 
 class TestTriangle2D:

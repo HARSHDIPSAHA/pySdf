@@ -22,7 +22,7 @@ The `pip install -e .` command installs:
 
 - **`sdf2d`**: 2D signed distance function library
 - **`sdf3d`**: 3D signed distance function library
-- **`sdf_lib.py`**: Core SDF primitive implementations
+- **`sdf2d/primitives.py`**, **`sdf3d/primitives.py`**: Core SDF primitive implementations
 
 ## Package Structure
 

@@ -75,7 +75,7 @@ def _make_shapes() -> list[tuple[str, object]]:
         ("RoundedCross2D",       RoundedCross2D(0.5).scale(0.55)),
         ("Egg2D",                Egg2D(0.5, 0.2)),
         ("Heart2D",              Heart2D()),
-        ("Cross2D",              Cross2D((0.2, 0.6), 0.0)),
+        ("Cross2D",              Cross2D((0.6, 0.2), 0.0)),
         ("RoundedX2D",           RoundedX2D(0.5, 0.36)),
         ("Polygon2D",            Polygon2D([(-0.5, -0.5), (0.5, -0.4), (0.6, 0.3), (0.0, 0.6), (-0.5, 0.4)])),
         ("Ellipse2D",            Ellipse2D((0.7, 0.4))),

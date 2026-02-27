@@ -6,7 +6,7 @@ A 2D and 3D Signed Distance Function (SDF) library with optional pyAMReX integra
 
 ### Top-level
 
-- `sdf_lib.py` — NumPy implementations of all SDF primitives and operators. Both 2D and 3D functions live here. No AMReX dependency.
+- `_sdf_common.py` — Shared math helpers (vec2/vec3, length, dot, clamp, boolean ops) used by both packages.
 - `sdf2d/` — 2D geometry package (fully implemented).
 - `sdf3d/` — 3D geometry package (fully implemented).
 - `tests/` — pytest test suite (no AMReX required to run).
@@ -19,7 +19,8 @@ A 2D and 3D Signed Distance Function (SDF) library with optional pyAMReX integra
 
 The 2D API. All code lives directly in this package.
 
-- `geometry.py` — All 2D geometry classes. Includes primitives (`Circle2D`, `Box2D`, `Hexagon2D`, …), boolean ops (`Union2D`, `Intersection2D`, `Subtraction2D`), and transforms (`translate`, `rotate`, `scale`, `round`, `onion`). Every class wraps a lambda over `sdf_lib` and exposes `sdf(p)`.
+- `primitives.py` — NumPy implementations of all 2D SDF formulas (`sdCircle`, `sdBox2D`, …) and `opTx2D`. Re-exports everything from `_sdf_common`. No AMReX dependency.
+- `geometry.py` — All 2D geometry classes. Includes primitives (`Circle2D`, `Box2D`, `Hexagon2D`, …), boolean ops (`Union2D`, `Intersection2D`, `Subtraction2D`), and transforms (`translate`, `rotate`, `scale`, `round`, `onion`). Every class wraps a lambda over `primitives` and exposes `sdf(p)`.
 - `grid.py` — `sample_levelset_2d(geom, bounds, resolution)` samples a `Geometry2D` object onto a cell-centred 2D NumPy grid. Also provides `save_npy`.
 - `amrex.py` — `SDFLibrary2D` builds AMReX `MultiFab` level-set fields for a 2D domain. Requires a pyAMReX 2-D build (`amrex.space2d`). Import is guarded so the module loads even without AMReX.
 - `__init__.py` — Re-exports every public symbol from the three modules above.
@@ -28,6 +29,7 @@ The 2D API. All code lives directly in this package.
 
 The 3D API. All code lives directly in this package.
 
+- `primitives.py` — NumPy implementations of all 3D SDF formulas (`sdSphere`, `sdBox`, …), space-warps (`opElongate`, `opRevolution`, `opExtrusion`), and smooth ops. Re-exports everything from `_sdf_common`. No AMReX dependency.
 - `geometry.py` — All 3D geometry classes: `Sphere3D`, `Box3D`, `RoundBox3D`, `Cylinder3D`, `ConeExact3D`, `Torus3D`, and boolean ops `Union3D` / `Intersection3D` / `Subtraction3D`. Transforms: `translate`, `rotate_x/y/z`, `scale`, `elongate`, `round`, `onion`.
 - `grid.py` — `sample_levelset_3d(geom, bounds, resolution)` samples a `Geometry3D` onto a cell-centred 3D NumPy grid (shape `(nz, ny, nx)`). Also provides `save_npy`.
 - `amrex.py` — `SDFLibrary3D` builds AMReX `MultiFab` level-set fields for a 3D domain. Requires a pyAMReX 3-D build (`amrex.space3d`). Import is guarded so the module loads even without AMReX.
@@ -45,7 +47,8 @@ All tests run with `pytest` and require only `numpy`. AMReX is not needed.
 
 | File | What it tests |
 |------|--------------|
-| `test_sdf_lib.py` | Every function in `sdf_lib.py` at analytically known points |
+| `test_sdf2d_lib.py` | Every function in `sdf2d/primitives.py` at analytically known points |
+| `test_sdf3d_lib.py` | Every function in `sdf3d/primitives.py` at analytically known points |
 | `test_sdf2d_geometry.py` | Every 2D geometry class: sign correctness, transforms, booleans |
 | `test_sdf2d_grid.py` | `sample_levelset_2d` shape/sign, `save_npy` round-trip |
 | `test_sdf3d_geometry.py` | Every 3D geometry class: sign correctness, transforms, booleans |
@@ -65,7 +68,7 @@ pytest tests/ -v
 Rendering and visualization utilities. These are not part of the library API and are not installed.
 
 - `gallery_2d.py` — Renders all `sdf2d` shapes on a single page (requires matplotlib).
-- `gallery_3d.py` — Renders all `sdf_lib` 3D primitives on a single page (requires matplotlib + scikit-image).
+- `gallery_3d.py` — Renders all `sdf3d/primitives.py` shapes on a single page (requires matplotlib + scikit-image).
 - `render_surface_from_plotfile.py` — Renders an AMReX plotfile SDF=0 surface (requires pyAMReX + yt).
 
 ---
@@ -77,7 +80,7 @@ User parameters
       ↓
 Geometry classes  (sdf2d / sdf3d)
       ↓
-SDF evaluation    (sdf_lib.py — pure NumPy)
+SDF evaluation    (primitives.py — pure NumPy)
       ↓
 Level-set field   φ(x, y[, z]) on a grid
       ↓

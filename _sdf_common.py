@@ -11,7 +11,7 @@ This module provides:
   :func:`opRound`, :func:`opOnion`, :func:`opScale`
 
 Not meant to be imported directly by end users — import from
-``sdf2d.sdf_lib`` or ``sdf3d.sdf_lib`` instead.
+``sdf2d.primitives`` or ``sdf3d.primitives`` instead.
 """
 
 from __future__ import annotations

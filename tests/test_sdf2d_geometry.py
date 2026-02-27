@@ -152,8 +152,8 @@ class TestEquilateralTriangle2D_:
 
 class TestTriangleIsosceles2D_:
     def test_inside(self):
-        # Empirically: inside is just above y=height (the apex of the formula's orientation)
-        assert TriangleIsosceles2D(0.2, 0.4).sdf(_p(0, 0.41))[0] < 0
+        # IQ formula: apex at (0,0), base at y=height; interior is between them
+        assert TriangleIsosceles2D(0.2, 0.4).sdf(_p(0, 0.2))[0] < 0
 
 
 class TestTriangle2D_:

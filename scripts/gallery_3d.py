@@ -1,4 +1,4 @@
-"""Render every sdf_lib 3D primitive as an isosurface on one page.
+"""Render every primitives.py 3D primitive as an isosurface on one page.
 
 Uses marching cubes (scikit-image) to extract the SDF=0 surface and
 matplotlib's 3-D axes to display it — no AMReX or yt required.
@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from sdf3d import sdf_lib as sdf
+from sdf3d import primitives as sdf
 from sdf3d.examples import NATOFragment, RocketAssembly
 
 
@@ -292,7 +292,7 @@ def render_gallery(shapes, out_path: str, ncols: int = 8, res: int = 80) -> None
         ax = fig.add_subplot(nrows, ncols, idx + 1, projection="3d")
         ax.set_visible(False)
 
-    fig.suptitle("sdf_lib — 3D Signed Distance Function Gallery", color="white",
+    fig.suptitle("sdf3d — 3D Signed Distance Function Gallery", color="white",
                  fontsize=13, y=1.002)
     plt.tight_layout(pad=0.3)
     fig.savefig(out_path, dpi=180, bbox_inches="tight", facecolor=fig.get_facecolor())
@@ -302,7 +302,7 @@ def render_gallery(shapes, out_path: str, ncols: int = 8, res: int = 80) -> None
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Render all sdf_lib 3D primitives to a single PNG gallery."
+        description="Render all sdf3d 3D primitives to a single PNG gallery."
     )
     parser.add_argument("--out",  default="gallery_3d.png", help="Output PNG path")
     parser.add_argument("--cols", type=int, default=8, help="Number of columns (default 8)")

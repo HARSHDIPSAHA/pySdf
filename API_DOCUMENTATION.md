@@ -10,7 +10,7 @@ Reference guide for the `sdf2d` and `sdf3d` packages.
 4. [2D API — `sdf2d`](#2d-api--sdf2d)
 5. [3D API — `sdf3d`](#3d-api--sdf3d)
 6. [AMReX integration](#amrex-integration)
-7. [Low-level math — `sdf_lib`](#low-level-math--sdf_lib)
+7. [Low-level math — `sdf2d.primitives` / `sdf3d.primitives`](#low-level-math--sdf2dprimitives--sdf3dprimitives)
 8. [Tips](#tips)
 
 ---
@@ -402,21 +402,26 @@ for mfi in mf:
     phi = arr[..., 0]   # shape (ny, nx[, nz]) — one SDF component, no ghost cells
 ```
 
-## Low-level math — `sdf_lib`
+## Low-level math — `sdf2d.primitives` / `sdf3d.primitives`
 
-`sdf_lib.py` contains the underlying NumPy functions used by both `sdf2d` and `sdf3d`. You can use them directly for maximum control:
+The underlying NumPy functions are split by dimensionality:
+
+- **`sdf2d.primitives`** — 2D primitives (`sdCircle`, `sdBox2D`, …) + `opTx2D`
+- **`sdf3d.primitives`** — 3D primitives (`sdSphere`, `sdBox`, …), space-warps, smooth ops
+- **`_sdf_common`** — shared helpers re-exported by both (`vec2`, `vec3`, `opUnion`, …)
 
 ```python
-import sdf_lib as sdf
+from sdf3d import primitives as sdf3d
+from sdf2d import primitives as sdf2d
 import numpy as np
 
-# Points: shape (..., 3) for 3D functions, (..., 2) for 2D functions
+# 3D example
 p = np.array([[[0.0, 0.0, 0.0]]])
-d = sdf.sdSphere(p, 0.3)       # d[0,0] == -0.3
+d = sdf3d.sdSphere(p, 0.3)       # d[0,0] == -0.3
 
 # 2D example
 q = np.array([[0.0, 0.0]])
-d = sdf.sdCircle(q, 0.3)       # d[0] == -0.3
+d = sdf2d.sdCircle(q, 0.3)       # d[0] == -0.3
 ```
 
 All functions follow the naming convention `sd<Shape>` (signed) or `ud<Shape>` (unsigned). Boolean and warp operators are prefixed with `op`. Full list:

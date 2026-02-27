@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Tuple
 import numpy as np
 import numpy.typing as npt
 
-from . import sdf_lib as sdf
+from . import primitives as sdf
 
 if TYPE_CHECKING:
     import amrex.space3d as amr  # noqa: F401 — type-checker only

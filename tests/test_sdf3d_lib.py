@@ -1,6 +1,6 @@
-"""Tests for sdf3d/sdf_lib.py — 3-D SDF math primitives and operators.
+"""Tests for sdf3d/primitives.py — 3-D SDF math primitives and operators.
 
-Every 3-D function in sdf3d.sdf_lib is tested at least once.  Tests verify:
+Every 3-D function in sdf3d.primitives is tested at least once.  Tests verify:
 - Correct sign (negative inside, positive outside, zero on surface)
 - Exact or near-exact distance at analytically known points
 - Array shape / broadcasting consistency
@@ -10,7 +10,8 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from sdf3d import sdf_lib as sdf
+from sdf3d import primitives as sdf
+from sdf2d import primitives as sdf2d  # 2D primitives needed for opRevolution/opExtrusion tests
 
 
 # ---------------------------------------------------------------------------
@@ -310,12 +311,12 @@ class TestWarpOps:
 
     def test_revolution_returns_array(self):
         p = _grid3(4)
-        result = sdf.opRevolution(p, lambda q: sdf.sdCircle(q, 0.2), 0.15)
+        result = sdf.opRevolution(p, lambda q: sdf2d.sdCircle(q, 0.2), 0.15)
         assert result.shape == (4, 4, 4)
 
     def test_extrusion_returns_array(self):
         p = _grid3(4)
-        result = sdf.opExtrusion(p, lambda q: sdf.sdBox2D(q, np.array([0.2, 0.2])), 0.1)
+        result = sdf.opExtrusion(p, lambda q: sdf2d.sdBox2D(q, np.array([0.2, 0.2])), 0.1)
         assert result.shape == (4, 4, 4)
 
     def test_sym_x_equals_abs_x(self):

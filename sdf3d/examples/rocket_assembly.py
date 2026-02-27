@@ -14,7 +14,7 @@ from typing import Tuple, TYPE_CHECKING
 
 import numpy as np
 
-from .. import sdf_lib as sdf
+from .. import primitives as sdf
 from sdf3d.geometry import Sphere3D, Box3D, Union3D, Geometry3D
 
 if TYPE_CHECKING:

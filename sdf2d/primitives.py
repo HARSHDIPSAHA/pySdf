@@ -57,22 +57,25 @@ def sdSegment2D(p: _F, a: _F, b: _F) -> _F:
     return length(pa - ba * h[..., None])
 
 
-def sdRhombus2D(p: _F, b: _F) -> _F: # TODO: Strange white lines
+def sdRhombus2D(p: _F, b: _F) -> _F:
     """2-D rhombus with half-extents *b*."""
-    p = np.abs(p)
-    h = clamp((-2.0 * dot2(p) + dot2(b)) / dot2(b), -1.0, 1.0)
-    d = length(p - 0.5 * b * vec2(1.0 - h, 1.0 + h))
-    return d * np.sign(p[..., 0] * b[1] + p[..., 1] * b[0] - b[0] * b[1])
+    px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
+    # IQ: negate b.y, then h = clamp((dot(b,p) + b.y²) / dot(b,b), 0, 1)
+    h  = clamp((b[0] * px - b[1] * py + b[1] * b[1]) / (b[0] * b[0] + b[1] * b[1]), 0.0, 1.0)
+    px = px - b[0] * h
+    py = py + b[1] * (h - 1.0)
+    return length(vec2(px, py)) * np.sign(px)
 
 
-def sdTrapezoid2D(p: _F, r1: float, r2: float, he: float) -> _F: # TODO: Looks incomplete in the render.
+def sdTrapezoid2D(p: _F, r1: float, r2: float, he: float) -> _F:
     """2-D isosceles trapezoid with base radii *r1*/*r2* and height *he*."""
     k1 = vec2(r2, he)
     k2 = vec2(r2 - r1, 2.0 * he)
     px = np.abs(p[..., 0])
     py = p[..., 1]
+    pv = vec2(px, py)
     ca = vec2(np.maximum(0.0, px - np.where(py < 0.0, r1, r2)), np.abs(py) - he)
-    cb = p - k1 + k2 * clamp(dot(k1 - vec2(px, py), k2) / dot2(k2), 0.0, 1.0)[..., None]
+    cb = pv - k1 + k2 * clamp(dot(k1 - pv, k2) / dot2(k2), 0.0, 1.0)[..., None]
     s  = np.where((cb[..., 0] < 0.0) & (ca[..., 1] < 0.0), -1.0, 1.0)
     return s * np.sqrt(np.minimum(dot2(ca), dot2(cb)))
 
@@ -87,25 +90,33 @@ def sdParallelogram2D(p: _F, wi: float, he: float, sk: float) -> _F:
     return sdPolygon2D(p, v)
 
 
-def sdEquilateralTriangle2D(p: _F, r: float) -> _F: # TODO: Upside down blue-filled triangle instead of a normal white-bordered one.
+def sdEquilateralTriangle2D(p: _F, r: float) -> _F:
     """2-D equilateral triangle with circumradius *r*."""
-    k  = np.array([np.sqrt(3.0), -1.0])
+    k  = np.sqrt(3.0)
     px = np.abs(p[..., 0]) - r
-    py = p[..., 1] + r / np.sqrt(3.0)
-    px = px - 2.0 * np.minimum(0.0, k[0] * px + k[1] * py) * k[0]
-    py = py - 2.0 * np.minimum(0.0, k[0] * px + k[1] * py) * k[1]
-    px = px - clamp(px, -2.0 * r, 0.0)
-    return -length(vec2(px, py)) * np.sign(py)
+    py = p[..., 1] + r / k
+    # IQ: if p.x + k*p.y > 0: p = vec2(p.x-k*p.y, -k*p.x-p.y) / 2
+    cond   = px + k * py > 0.0
+    new_px = np.where(cond, (px - k * py) / 2.0, px)
+    new_py = np.where(cond, (-k * px - py) / 2.0, py)
+    new_px = new_px - clamp(new_px, -2.0 * r, 0.0)
+    return -length(vec2(new_px, new_py)) * np.sign(new_py)
 
 
-def sdTriangleIsosceles2D(p: _F, q: _F) -> _F: # TODO: Strange white orbs near the top of the triangle.
+def sdTriangleIsosceles2D(p: _F, q: _F) -> _F:
     """2-D isosceles triangle; *q* = ``(half_base, height)``."""
-    px = np.abs(p[..., 0])
-    py = p[..., 1]
-    a  = px - q[0] * clamp(safe_div(px, q[0]), 0.0, 1.0)
-    b  = vec2(px - q[0], np.abs(py) - q[1])
-    d  = np.minimum(dot2(vec2(a, py + q[1])), dot2(b))
-    return -np.sqrt(d) * np.sign(px * q[1] + py * q[0] - q[0] * q[1])
+    px = np.abs(p[..., 0]);  py = p[..., 1]
+    pv = vec2(px, py)
+    # a = p - q*clamp(dot(p,q)/dot(q,q), 0, 1)
+    a  = pv - q * clamp(dot(pv, q) / dot2(q), 0.0, 1.0)[..., None]
+    # b = p - q*vec2(clamp(p.x/q.x, 0, 1), 1)
+    b  = pv - q * vec2(clamp(px / q[0], 0.0, 1.0), np.ones_like(px))
+    s  = -np.sign(q[1])
+    d  = np.minimum(
+        vec2(dot2(a), s * (px * q[1] - py * q[0])),
+        vec2(dot2(b), s * (py - q[1])),
+    )
+    return -np.sqrt(d[..., 0]) * np.sign(d[..., 1])
 
 
 def sdTriangle2D(p: _F, p0: _F, p1: _F, p2: _F) -> _F:
@@ -171,42 +182,34 @@ def sdOctagon2D(p: _F, r: float) -> _F:
     k  = np.array([-0.9238795325, 0.3826834323, 0.4142135623])
     px = np.abs(p[..., 0])
     py = np.abs(p[..., 1])
-    d  = 2.0 * np.minimum(dot(vec2(px, py), k[:2]), 0.0)
-    px = px - d * k[0];  py = py - d * k[1]
+    # Two fold steps: k.xy then k.yx
+    d1 = 2.0 * np.minimum(dot(vec2(px, py), k[:2]), 0.0)
+    px = px - d1 * k[0];  py = py - d1 * k[1]
+    d2 = 2.0 * np.minimum(dot(vec2(px, py), vec2(k[1], k[0])), 0.0)
+    px = px - d2 * k[1];  py = py - d2 * k[0]
     px = px - clamp(px, -k[2] * r, k[2] * r)
     py = py - r
     return length(vec2(px, py)) * np.sign(py)
 
 
-def sdHexagram2D(p: _F, r: float) -> _F: # TODO: Top and bottom looks cropped.
+def sdHexagram2D(p: _F, r: float) -> _F:
     """2-D hexagram (6-pointed star) with circumradius *r*."""
     k  = np.array([-0.5, 0.8660254038, 0.5773502692, 1.7320508076])
     px = np.abs(p[..., 0])
     py = np.abs(p[..., 1])
-    d  = 2.0 * np.minimum(dot(vec2(px, py), k[:2]), 0.0)
-    px = px - d * k[0];  py = py - d * k[1]
+    # Two fold steps: k.xy then k.yx
+    d1 = 2.0 * np.minimum(dot(vec2(px, py), k[:2]), 0.0)
+    px = px - d1 * k[0];  py = py - d1 * k[1]
+    d2 = 2.0 * np.minimum(dot(vec2(px, py), vec2(k[1], k[0])), 0.0)
+    px = px - d2 * k[1];  py = py - d2 * k[0]
     px = px - clamp(px, r * k[2], r * k[3])
     py = py - r
     return length(vec2(px, py)) * np.sign(py)
 
 
-def sdStar5(p: _F, r: float, rf: float) -> _F: # TODO: Remove this and just use sdStar with n=5 and m=rf, because this doesn't even work.
+def sdStar5(p: _F, r: float, rf: float) -> _F:
     """2-D 5-pointed star; *r* outer radius, *rf* inner factor (0–1)."""
-    k1 = np.array([0.809016994375, -0.587785252292])
-    k2 = np.array([-k1[0], k1[1]])
-    px = p[..., 0];  py = p[..., 1]
-    # Both fold steps update components simultaneously
-    d1 = 2.0 * np.maximum(dot(vec2(px, py), k1), 0.0)
-    px = px - d1 * k1[0];  py = py - d1 * k1[1]
-    d2 = 2.0 * np.maximum(dot(vec2(px, py), k2), 0.0)
-    px = px - d2 * k2[0];  py = py - d2 * k2[1]
-    # Rotation (simultaneous)
-    new_px = px * k1[0] + py * k1[1]
-    py     = py * k1[0] - px * k1[1]
-    px     = np.abs(new_px);  py = py - r
-    ba = rf * vec2(-k1[1], k1[0]) - vec2(0.0, 1.0)
-    h  = clamp(dot(vec2(px, py), ba) / dot2(ba), 0.0, r)
-    return length(vec2(px - ba[0] * h, py - ba[1] * h)) * np.sign(py * ba[0] - px * ba[1])
+    return sdStar(p, r, 5, rf)
 
 
 def sdStar(p: _F, r: float, n: int, m: float) -> _F:
@@ -219,8 +222,10 @@ def sdStar(p: _F, r: float, n: int, m: float) -> _F:
     px  = length(p) * np.cos(bn)
     py  = length(p) * np.abs(np.sin(bn))
     px  = px - r * acs[0];  py = py - r * acs[1]
-    px  = px + ecs[1] * clamp(-dot(vec2(px, py), ecs), 0.0, r * acs[1] / ecs[1])
-    py  = py + ecs[0] * clamp(-dot(vec2(px, py), ecs), 0.0, r * acs[1] / ecs[1])
+    # Simultaneous update: d = clamp(-dot(p,ecs), 0, limit); p += ecs*d
+    d   = clamp(-dot(vec2(px, py), ecs), 0.0, r * acs[1] / ecs[1])
+    px  = px + ecs[0] * d
+    py  = py + ecs[1] * d
     return length(vec2(px, py)) * np.sign(px)
 
 
@@ -258,17 +263,22 @@ def sdRing2D(p: _F, r1: float, r2: float) -> _F:
     return np.maximum(r1 - l, l - r2)
 
 
-def sdHorseshoe2D(p: _F, c: _F, r: float, w: _F) -> _F: # TODO: Just a straight line; not a horse-shoe.
+def sdHorseshoe2D(p: _F, c: _F, r: float, w: _F) -> _F:
     """2-D horseshoe; *c* = ``(sin, cos)`` of gap half-angle, *r* radius, *w* arm widths."""
     px = np.abs(p[..., 0]);  py = p[..., 1]
     l  = length(p)
-    px = np.where(py > 0.0, px, l) * np.sign(-c[0])
-    py = np.where(py > 0.0, py, 0.0)
-    px = px - c[0] * r;  py = py - c[1] * r
-    q  = vec2(length(vec2(np.maximum(px, 0.0), py)),
-              np.where(px < 0.0, py, length(vec2(px, py))))
-    d  = vec2(q[..., 0] - w[0], q[..., 1] - w[1])
-    return np.minimum(np.maximum(d[..., 0], d[..., 1]), 0.0) + length(np.maximum(d, 0.0))
+    # Apply mat2(-c.x, c.y, c.y, c.x) — GLSL column-major: col0=(-cx,cy), col1=(cy,cx)
+    new_px = -c[0] * px + c[1] * py
+    new_py =  c[1] * px + c[0] * py
+    px, py = new_px, new_py
+    # p = vec2((py>0||px>0)?px:l*sign(-cx), (px>0)?py:l)  — both read pre-update values
+    px_out = np.where((py > 0.0) | (px > 0.0), px, l * np.sign(-c[0]))
+    py_out = np.where(px > 0.0, py, l)
+    px, py = px_out, py_out
+    # p = vec2(px, abs(py-r)) - w  then standard 2D box SDF
+    qx = px - w[0]
+    qy = np.abs(py - r) - w[1]
+    return length(np.maximum(vec2(qx, qy), 0.0)) + np.minimum(0.0, np.maximum(qx, qy))
 
 
 def sdVesica2D(p: _F, r: float, d: float) -> _F:
@@ -292,45 +302,46 @@ def sdMoon2D(p: _F, d: float, ra: float, rb: float) -> _F:
                     np.maximum(length(p) - ra, -(length(vec2(p[..., 0] - d, py)) - rb)))
 
 
-def sdRoundedCross2D(p: _F, h: float) -> _F: # TODO: Looks like nothing.
+def sdRoundedCross2D(p: _F, h: float) -> _F:
     """2-D rounded cross of size *h*."""
-    k  = 0.5 * (h + 1.0 / h)
-    px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
-    c  = px < 1.0
-    qx = np.where(c, 1.0, px)
-    qy = np.where(c, k - py, py - k)
-    r1 = length(vec2(qx - 1.0, qy)) * np.sign(qy)
-    r2 = length(vec2(px - k, py)) * np.sign(px - k)
-    return np.minimum(r1, r2)
+    k   = 0.5 * (h + 1.0 / h)
+    px  = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
+    # IQ: (px<1 && py<px*(k-h)+h) ? k-sqrt(dot2(p-vec2(1,k))) : sqrt(min(dot2(p-vec2(0,h)), dot2(p-vec2(1,0))))
+    cond    = (px < 1.0) & (py < px * (k - h) + h)
+    inside  = k - np.sqrt(dot2(vec2(px - 1.0, py - k)))
+    outside = np.sqrt(np.minimum(dot2(vec2(px, py - h)), dot2(vec2(px - 1.0, py))))
+    return np.where(cond, inside, outside)
 
 
-def sdEgg2D(p: _F, ra: float, rb: float) -> _F: # TODO: The egg is "split" apart in the middle.
+def sdEgg2D(p: _F, ra: float, rb: float) -> _F:
     """2-D egg; *ra* large radius, *rb* small radius."""
     k  = np.sqrt(3.0)
     px = np.abs(p[..., 0]);  py = p[..., 1]
     r  = ra - rb
-    c  = py < 0.0
-    return np.where(c, length(vec2(px, py)) - r,
-           np.where(k * (px + r) < py, length(vec2(px, py - k * r)),
-                    length(vec2(px + r, py)) - 2.0 * r) - rb)
+    # All three branches share the outer -rb; it must apply to every case
+    return np.where(py < 0.0,
+                    length(vec2(px, py)) - r,
+                    np.where(k * (px + r) < py,
+                             length(vec2(px, py - k * r)),
+                             length(vec2(px + r, py)) - 2.0 * r)) - rb
 
 
-def sdHeart2D(p: _F) -> _F: # TODO: The commented out code looked like nothing, and the current code renders cropped out.
+def sdHeart2D(p: _F) -> _F:
     """2-D heart shape (unit-scale)."""
     px = np.abs(p[..., 0]);  py = p[..., 1]
-    c  = px + py > 1.0
-    # qx = np.where(c, px - 0.25, px)
-    # qy = np.where(c, py - 0.75, py)
-    # return length(vec2(qx, qy)) - np.where(c, np.sqrt(2.0) / 4.0, 1.0)
-    if c.any():
-        return length(vec2(px - 0.25, py - 0.75)) - np.sqrt(2.0) / 4.0
-    return np.sqrt(min(
-        dot2(p - vec2(0.0, 1.0)),
-        dot2(p - 0.5 * np.maximum(px + py, 0.0)),
+    # IQ: (px+py>1) ? sqrt(dot2(p-vec2(0.25,0.75)))-sqrt(2)/4
+    #               : sqrt(min(dot2(p-vec2(0,1)), dot2(p-0.5*max(px+py,0))))*sign(px-py)
+    cond    = px + py > 1.0
+    inside  = np.sqrt(dot2(vec2(px - 0.25, py - 0.75))) - np.sqrt(2.0) / 4.0
+    s       = 0.5 * np.maximum(px + py, 0.0)
+    outside = np.sqrt(np.minimum(
+        dot2(vec2(px, py - 1.0)),
+        dot2(vec2(px - s, py - s)),
     )) * np.sign(px - py)
+    return np.where(cond, inside, outside)
 
 
-def sdCross2D(p: _F, b: _F, r: float) -> _F: # TODO: Just looks like a box.
+def sdCross2D(p: _F, b: _F, r: float) -> _F:
     """2-D plus-sign cross; *b* = ``(half_arm_len, half_arm_width)``, *r* rounding."""
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
     c  = px > py
@@ -368,44 +379,55 @@ def sdPolygon2D(p: _F, v: _F) -> _F:
     return s * np.sqrt(d)
 
 
-def sdEllipse2D(p: _F, ab: _F) -> _F: # TODO: Looks like anything but.
+def sdEllipse2D(p: _F, ab: _F) -> _F:
     """2-D ellipse with semi-axes *ab* = ``(a, b)``."""
-    px   = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
-    c    = px > py
-    px_n = np.where(c, px, py);  py_n = np.where(c, py, px)
-    # Swap semi-axes per point: a0 follows the dominant axis, a1 the minor
-    a0   = np.where(c, ab[0], ab[1]);  a1 = np.where(c, ab[1], ab[0])
-    l    = a1 * a1 - a0 * a0
-    m    = a0 * px_n / l;  n_ = a1 * py_n / l
-    m2   = m * m;  n2 = n_ * n_
-    c3   = (m2 + n2 - 1.0) / 3.0
-    c3c  = c3 * c3 * c3
-    d    = c3c + m2 * n2
-    q    = d + m2 * n2
+    px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
+    # IQ swaps if p.x > p.y so that after swap p.x <= p.y; ab swaps with p
+    swap = px > py
+    px_s = np.where(swap, py, px);  py_s = np.where(swap, px, py)
+    a    = np.where(swap, ab[1], ab[0]);  b = np.where(swap, ab[0], ab[1])
+    l    = b * b - a * a
+    m    = a * px_s / l;   m2 = m * m
+    n_   = b * py_s / l;   n2 = n_ * n_
+    c    = (m2 + n2 - 1.0) / 3.0;   c3 = c * c * c
+    q    = c3 + m2 * n2 * 2.0
+    d    = c3 + m2 * n2
     g    = m + m * n2
-    # Guard branches against invalid inputs to avoid NaN in the unused branch
-    co   = np.where(
-        d < 0.0,
-        (1.0 / 3.0) * np.arccos(np.clip(safe_div(q, np.power(np.maximum(np.abs(c3c), 1e-30), 0.5)), -1.0, 1.0)) - np.pi / 3.0,
-        (1.0 / 3.0) * np.log(safe_div(np.sqrt(np.maximum(q, 0.0)) + np.sqrt(np.maximum(d, 0.0)), np.maximum(g, 1e-30))),
-    )
-    rx   = np.where(c, a0, a1) * np.cos(co)
-    ry   = np.where(c, a1, a0) * np.sin(co)
-    return length(vec2(px_n - rx, py_n - ry)) * np.sign(py_n - ry)
+    # d < 0 branch (3 real roots via acos)
+    h_n  = np.arccos(np.clip(safe_div(q, c3), -1.0, 1.0)) / 3.0
+    s_n  = np.cos(h_n);   t_n = np.sin(h_n) * np.sqrt(3.0)
+    rx_n = np.sqrt(np.maximum(-c * (s_n + t_n + 2.0) + m2, 0.0))
+    ry_n = np.sqrt(np.maximum(-c * (s_n - t_n + 2.0) + m2, 0.0))
+    co_n = (ry_n + np.sign(l) * rx_n + np.abs(g) / np.maximum(rx_n * ry_n, 1e-30) - m) / 2.0
+    # d >= 0 branch (1 real root via cube roots)
+    h_p  = 2.0 * m * n_ * np.sqrt(np.maximum(d, 0.0))
+    s_p  = np.sign(q + h_p) * np.power(np.abs(q + h_p), 1.0 / 3.0)
+    u_p  = np.sign(q - h_p) * np.power(np.abs(q - h_p), 1.0 / 3.0)
+    rx_p = -s_p - u_p - c * 4.0 + 2.0 * m2
+    ry_p = (s_p - u_p) * np.sqrt(3.0)
+    rm   = np.sqrt(np.maximum(rx_p * rx_p + ry_p * ry_p, 0.0))
+    co_p = (safe_div(ry_p, np.sqrt(np.maximum(rm - rx_p, 0.0))) + 2.0 * g / np.maximum(rm, 1e-30) - m) / 2.0
+    co   = np.where(d < 0.0, co_n, co_p)
+    r_x  = a * co
+    r_y  = b * np.sqrt(np.maximum(1.0 - co * co, 0.0))
+    return length(vec2(r_x - px_s, r_y - py_s)) * np.sign(py_s - r_y)
 
 
-def sdParabola2D(p: _F, k: float) -> _F: # TODO: Looks like anything but.
+def sdParabola2D(p: _F, k: float) -> _F:
     """2-D parabola ``y = k·x²``; *k* is the curvature."""
     px = np.abs(p[..., 0]);  py = p[..., 1]
     ik = 1.0 / k
     p2 = ik * (py - 0.5 * ik) / 3.0
-    q  = px / (k * k)
+    q  = 0.25 * ik * ik * px          # IQ: 0.25/k², not 1/k²
     h  = q * q - p2 * p2 * p2
     r  = np.sqrt(np.abs(h))
-    x  = np.where(h > 0.0,
-                  np.power(q + r, 1.0 / 3.0) - np.power(np.abs(q - r), 1.0 / 3.0) * np.sign(r - q),
-                  2.0 * np.cos(np.arctan2(r, q) / 3.0) * np.sqrt(p2))
-    return length(vec2(px - x * x, py - x)) * np.sign(py - x)
+    # h > 0: IQ computes r = cbrt(q+sqrt(h)), x = r + p2/r
+    cbrt = np.power(np.maximum(q + r, 0.0), 1.0 / 3.0)
+    x_p  = cbrt + p2 / np.maximum(cbrt, 1e-30)
+    # h <= 0: trigonometric method
+    x_n  = 2.0 * np.cos(np.arctan2(r, q) / 3.0) * np.sqrt(np.maximum(p2, 0.0))
+    x    = np.where(h > 0.0, x_p, x_n)
+    return length(vec2(px - x, py - k * x * x)) * np.sign(px - x)
 
 
 def sdParabolaSegment2D(p: _F, wi: float, he: float) -> _F:
@@ -445,72 +467,123 @@ def sdBezier2D(p: _F, A: _F, B: _F, C: _F) -> _F:
     return length(q3)
 
 
-def sdBlobbyCross2D(p: _F, he: float) -> _F: # TODO: Looks like anything but.
+def sdBlobbyCross2D(p: _F, he: float) -> _F:
     """2-D blobby cross of size *he*."""
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
-    px = np.where(py > px, py, px);  py = np.where(py > px, px, py)
-    a  = px - py
-    b  = px + py - 2.0 * he
-    c1 = a * a;  c2 = b * b + 4.0 * he * he
-    d  = np.where(a > 0.0, c1, c2)
-    return 0.5 * (np.sqrt(d) - he)
+    # IQ: pos = vec2(|px-py|, 1-px-py) / sqrt(2)
+    pos_x = np.abs(px - py) / np.sqrt(2.0)
+    pos_y = (1.0 - px - py) / np.sqrt(2.0)
+    p_val = (he - pos_y - 0.25 / he) / (6.0 * he)
+    q_val = pos_x / (he * he * 16.0)
+    h     = q_val * q_val - p_val * p_val * p_val
+    r     = np.sqrt(np.abs(h))
+    cbrt_p = np.power(np.maximum(q_val + r, 0.0), 1.0 / 3.0)
+    cbrt_m = np.power(np.maximum(np.abs(q_val - r), 0.0), 1.0 / 3.0) * np.sign(r - q_val)
+    r_sqrt = np.sqrt(np.maximum(p_val, 0.0))
+    x = np.minimum(
+        np.where(h > 0.0,
+                 cbrt_p - cbrt_m,
+                 2.0 * r_sqrt * np.cos(np.arccos(np.clip(
+                     safe_div(q_val, np.maximum(p_val * r_sqrt, 1e-30)), -1.0, 1.0)) / 3.0)),
+        np.sqrt(2.0) / 2.0,
+    )
+    zx = x - pos_x
+    zy = he * (1.0 - 2.0 * x * x) - pos_y
+    return length(vec2(zx, zy)) * np.sign(zy)
 
 
-def sdTunnel2D(p: _F, wh: _F) -> _F: # TODO: Looks like anything but.
+def sdTunnel2D(p: _F, wh: _F) -> _F:
     """2-D tunnel/arch; *wh* = ``(half_width, height)``."""
-    px = np.abs(p[..., 0]);  py = p[..., 1]
-    px = px - wh[0]
-    q  = vec2(px, np.maximum(np.abs(py) - wh[1], 0.0))
-    return length(q) - 0.5 * wh[0]
+    px = np.abs(p[..., 0]);  py = -p[..., 1]   # IQ negates p.y
+    qx = px - wh[0];  qy = py - wh[1]
+    d1  = dot2(vec2(np.maximum(qx, 0.0), qy))
+    # IQ: q.x = (py>0) ? q.x : length(px,py) - wh.x
+    qx2 = np.where(py > 0.0, qx, length(vec2(px, py)) - wh[0])
+    d2  = dot2(vec2(qx2, np.maximum(qy, 0.0)))
+    d   = np.sqrt(np.minimum(d1, d2))
+    return np.where(np.maximum(qx2, qy) < 0.0, -d, d)
 
 
-def sdStairs2D(p: _F, wh: _F, n: int) -> _F: # TODO: Looks like anything but.
+def sdStairs2D(p: _F, wh: _F, n: int) -> _F:
     """2-D staircase; *wh* = ``(step_width, step_height)``, *n* steps."""
     ba  = wh * n
+    px  = p[..., 0];  py = p[..., 1]
+    # IQ: d = min(dot2(p - vec2(clamp(p.x,0,ba.x), 0)),
+    #              dot2(p - vec2(ba.x, clamp(p.y,0,ba.y))))
     d   = np.minimum(
-        dot2(p - vec2(clamp(p[..., 0], 0.0, ba[0]), clamp(p[..., 1], 0.0, ba[1]))),
-        dot2(p - vec2(np.minimum(p[..., 0], ba[0]), np.minimum(p[..., 1], ba[1]))),
+        dot2(p - vec2(clamp(px, 0.0, ba[0]), np.zeros_like(py))),
+        dot2(p - vec2(np.full_like(px, ba[0]), clamp(py, 0.0, ba[1]))),
     )
-    s    = np.sign(np.maximum(-p[..., 1], p[..., 0] - ba[0]))
-    dia  = length(wh)
-    px_m = p[..., 0] - wh[0] * clamp(np.round(p[..., 0] / wh[0]), 0.0, n)
-    py_m = p[..., 1] - wh[1] * clamp(np.round(p[..., 1] / wh[1]), 0.0, n)
-    d    = np.minimum(d, dot2(vec2(px_m, py_m) - 0.5 * wh) - 0.25 * dia * dia)
+    s   = np.sign(np.maximum(-py, px - ba[0]))
+    dia = length(wh)
+    # Rotate into stair-aligned frame: mat2(wh.x,-wh.y, wh.y,wh.x)/dia
+    rx  = (wh[0] * px - wh[1] * py) / dia
+    ry  = (wh[1] * px + wh[0] * py) / dia
+    id_ = clamp(np.round(rx / dia), 0.0, n - 1.0)
+    rx  = rx - id_ * dia
+    # Rotate back: mat2(wh.x,wh.y,-wh.y,wh.x)/dia
+    bx  = (wh[0] * rx + wh[1] * ry) / dia
+    by  = (-wh[1] * rx + wh[0] * ry) / dia
+    hh  = wh[1] / 2.0
+    by  = by - hh
+    s   = np.where(by > hh * np.sign(bx), 1.0, s)
+    # IQ: p = (id<0.5 || p.x>0) ? p : -p
+    flip = ~((id_ < 0.5) | (bx > 0.0))
+    bx   = np.where(flip, -bx, bx);  by = np.where(flip, -by, by)
+    d    = np.minimum(d, dot2(vec2(bx, by - clamp(by, -hh, hh))))
+    d    = np.minimum(d, dot2(vec2(clamp(bx, 0.0, wh[0]), by - hh)))
     return np.sqrt(np.maximum(d, 0.0)) * s
 
 
-def sdQuadraticCircle2D(p: _F) -> _F: # TODO: Looks like anything but.
+def sdQuadraticCircle2D(p: _F) -> _F:
     """2-D quadratic-circle approximation (unit-scale)."""
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
-    c  = py > px
-    px_n = np.where(c, py, px);  py_n = np.where(c, px, py)
-    a  = px_n - py_n;  b = px_n + py_n
-    c3 = (2.0 * b - 1.0) / 3.0
-    h  = a * a + c3 * c3 * c3
-    c3_safe = np.maximum(c3, 1e-30)
-    t  = np.where(h >= 0.0,
-                  a + np.sign(a) * np.power(np.maximum(h, 0.0), 1.0 / 3.0),
-                  a + 2.0 * c3 * np.cos(np.arccos(np.clip(a / (c3_safe * np.sqrt(c3_safe)), -1.0, 1.0)) / 3.0))
-    t  = np.minimum(t, 1.0)
-    d  = length(vec2(px_n - t, py_n - t * t))
-    return d * np.sign(b - 1.0 - t * t)
+    # Swap so px >= py
+    swap = py > px
+    px_s = np.where(swap, py, px);  py_s = np.where(swap, px, py)
+    a = px_s - py_s;  b = px_s + py_s
+    c = (2.0 * b - 1.0) / 3.0
+    H = a * a + c * c * c
+    # h >= 0 branch: h=sqrt(H), t = sign(h-a)*|h-a|^(1/3) - (h+a)^(1/3)
+    h_s  = np.sqrt(np.maximum(H, 0.0))
+    t_p  = (np.sign(h_s - a) * np.power(np.maximum(np.abs(h_s - a), 0.0), 1.0 / 3.0)
+            - np.power(np.maximum(h_s + a, 0.0), 1.0 / 3.0))
+    # h < 0 branch: z=sqrt(-c), v=acos(a/(c*z))/3, t=-z*(cos(v)+sin(v)*sqrt(3))
+    z    = np.sqrt(np.maximum(-c, 0.0))
+    cz   = c * z   # negative when c<0: c*sqrt(-c)
+    v    = np.arccos(np.clip(safe_div(a, cz), -1.0, 1.0)) / 3.0
+    t_n  = -z * (np.cos(v) + np.sin(v) * np.sqrt(3.0))
+    t    = np.where(H >= 0.0, t_p, t_n) * 0.5
+    # w = vec2(-t,t) + 0.75 - t² - p
+    wx   = -t + 0.75 - t * t - px_s
+    wy   =  t + 0.75 - t * t - py_s
+    return length(vec2(wx, wy)) * np.sign(a * a * 0.5 + b - 1.5)
 
 
-def sdHyperbola2D(p: _F, k: float, he: float) -> _F: # TODO: Looks like anything but.
+def sdHyperbola2D(p: _F, k: float, he: float) -> _F:
     """2-D hyperbola; *k* curvature, *he* half-height."""
     px = np.abs(p[..., 0]);  py = np.abs(p[..., 1])
-    kv = vec2(k, 1.0)
-    kd = dot2(kv)
-    px = px - 2.0 * np.minimum(dot(vec2(px, py), kv), 0.0) * k / kd
-    py = py - 2.0 * np.minimum(dot(vec2(px, py), kv), 0.0) / kd
-    x2 = px * px / 16.0;  y2 = py * py / 16.0
-    r  = dot2(vec2(px * py, he * he * (1.0 - 2.0 * k) * px - k * py * py))
-    q  = (x2 - y2) * (x2 - y2)
-    q  = np.where(r != 0.0, (3.0 * y2 - x2) * x2 * x2 + r, q)
-    return (
-        length(vec2(px, py - he)) * np.sign(py - he)
-        + np.sqrt(np.abs(q)) * np.sign(r) * 0.0625
-    )
+    # IQ: rotate 45°  →  p = vec2(p.x-p.y, p.x+p.y)/sqrt(2)
+    px_r = (px - py) / np.sqrt(2.0)
+    py_r = (px + py) / np.sqrt(2.0)
+    x2  = px_r * px_r / 16.0;  y2 = py_r * py_r / 16.0
+    r   = k * (4.0 * k - px_r * py_r) / 12.0
+    q   = (x2 - y2) * k * k
+    H   = q * q + r * r * r
+    # H < 0 branch
+    m_n = np.sqrt(np.maximum(-r, 0.0))
+    rm  = r * m_n                                       # r * sqrt(-r), negative when r<0
+    u_n = m_n * np.cos(np.arccos(np.clip(safe_div(q, rm), -1.0, 1.0)) / 3.0)
+    # H >= 0 branch
+    m_p = np.power(np.maximum(np.sqrt(np.maximum(H, 0.0)) - q, 0.0), 1.0 / 3.0)
+    u_p = (m_p - safe_div(r, m_p)) / 2.0
+    u   = np.where(H < 0.0, u_n, u_p)
+    w   = np.sqrt(np.maximum(u + x2, 0.0))
+    b_v = k * py_r - x2 * px_r * 2.0
+    t   = px_r / 4.0 - w + np.sqrt(np.maximum(2.0 * x2 - u + safe_div(b_v, w) / 4.0, 0.0))
+    t   = np.maximum(t, np.sqrt(he * he * 0.5 + k) - he / np.sqrt(2.0))
+    d   = length(vec2(px_r - t, py_r - k / np.maximum(t, 1e-30)))
+    return np.where(px_r * py_r < k, d, -d)
 
 
 def sdNGon2D(p: _F, r: float, n: int) -> _F:
