@@ -216,6 +216,20 @@ class TestArc2D:
         p  = _grid2(4)
         assert sdf.sdArc2D(p, sc, 0.3, 0.05).shape == (4, 4)
 
+    def test_origin_outside(self):
+        # Arc is a curved tube, not a filled shape; origin is outside
+        sc = np.array([np.sin(np.pi / 4), np.cos(np.pi / 4)])
+        assert sdf.sdArc2D(_p2(0, 0), sc, 0.3, 0.05)[0] > 0
+
+    def test_on_arc_surface(self):
+        # With sc=(0, -1) (cos < 0) the cap covers the full ring.
+        # The condition sc[1]*px > sc[0]*py → -px > 0 is always False,
+        # so k = length(p) = ra+rb and phi = |ra+rb - ra| - rb = 0.
+        sc_full = np.array([0.0, -1.0])
+        ra, rb = 0.3, 0.05
+        p = _p2(ra + rb, 0.0)
+        npt.assert_allclose(sdf.sdArc2D(p, sc_full, ra, rb), [0.0], atol=1e-10)
+
 
 class TestRing2D:
     def test_outside_small(self):
@@ -242,6 +256,15 @@ class TestMoon2D:
     def test_returns_array(self):
         p = _grid2(4)
         assert sdf.sdMoon2D(p, 0.2, 0.3, 0.15).shape == (4, 4)
+
+    def test_inside_crescent(self):
+        # d=0.2, ra=0.4, rb=0.3: crescent region is inside outer(r=0.4) AND outside inner(r=0.3 centred at d)
+        # p=(-0.15, 0): dist from origin=0.15<0.4 ✓; dist from (0.2,0)=0.35>0.3 ✓ → inside crescent
+        assert sdf.sdMoon2D(_p2(-0.15, 0), 0.2, 0.4, 0.3)[0] < 0
+
+    def test_outside_crescent(self):
+        # Far away from the crescent
+        assert sdf.sdMoon2D(_p2(2.0, 0), 0.2, 0.4, 0.3)[0] > 0
 
 
 class TestRoundedCross2D:
@@ -271,6 +294,14 @@ class TestRoundedX2D:
         p = _grid2(4)
         assert sdf.sdRoundedX2D(p, 0.3, 0.05).shape == (4, 4)
 
+    def test_inside_arm(self):
+        # On the ±45° diagonal arms; phi = w/sqrt(2) - r.  With w<r*sqrt(2) → phi < 0
+        # w=0.1, r=0.1: phi = 0.1/1.414 - 0.1 ≈ -0.029 < 0
+        assert sdf.sdRoundedX2D(_p2(0, 0), 0.1, 0.1)[0] < 0
+
+    def test_outside(self):
+        assert sdf.sdRoundedX2D(_p2(1.0, 0), 0.3, 0.05)[0] > 0
+
 
 class TestHorseshoe2D:
     def test_returns_array(self):
@@ -286,17 +317,46 @@ class TestEllipse2D:
         result = sdf.sdEllipse2D(_p2(0.3, 0.1), ab)
         assert result.shape == (1,)
 
+    def test_inside_at_origin(self):
+        ab = np.array([0.4, 0.2])
+        assert sdf.sdEllipse2D(_p2(0, 0), ab)[0] < 0
+
+    def test_on_surface_at_major_axis(self):
+        ab = np.array([0.4, 0.2])
+        # Point at (a, 0) is on the surface → phi ≈ 0
+        npt.assert_allclose(sdf.sdEllipse2D(_p2(0.4, 0), ab), [0.0], atol=1e-6)
+
+    def test_outside(self):
+        ab = np.array([0.4, 0.2])
+        assert sdf.sdEllipse2D(_p2(1.0, 0), ab)[0] > 0
+
 
 class TestParabola2D:
     def test_returns_array(self):
         p = _grid2(4)
         assert sdf.sdParabola2D(p, 1.0).shape == (4, 4)
 
+    def test_inside_concave_bowl(self):
+        # p=(0.1, 0.5) with k=1: inside the upward-opening bowl (x*y region above parabola)
+        assert sdf.sdParabola2D(_p2(0.1, 0.5), 1.0)[0] < 0
+
+    def test_outside(self):
+        # Far to the right of the parabola arms: px > x_closest → phi > 0
+        assert sdf.sdParabola2D(_p2(2.0, 0.0), 1.0)[0] > 0
+
 
 class TestParabolaSegment2D:
     def test_returns_array(self):
         p = _grid2(4)
         assert sdf.sdParabolaSegment2D(p, 0.3, 0.2).shape == (4, 4)
+
+    def test_inside_segment(self):
+        # wi=0.5, he=0.3; p=(0, 0.1): below apex (py<he), sign(-ik*(he-py))=-1 → phi < 0
+        assert sdf.sdParabolaSegment2D(_p2(0, 0.1), 0.5, 0.3)[0] < 0
+
+    def test_outside_above_apex(self):
+        # p=(0, 0.5) is above the segment (py > he=0.3) → outside
+        assert sdf.sdParabolaSegment2D(_p2(0, 0.5), 0.5, 0.3)[0] > 0
 
 
 class TestBezier2D:
@@ -313,11 +373,23 @@ class TestBlobbyCross2D:
     def test_returns_array(self):
         assert sdf.sdBlobbyCross2D(_grid2(4), 0.3).shape == (4, 4)
 
+    def test_inside_at_origin(self):
+        assert sdf.sdBlobbyCross2D(_p2(0, 0), 0.3)[0] < 0
+
 
 class TestTunnel2D:
     def test_returns_array(self):
         wh = np.array([0.2, 0.3])
         assert sdf.sdTunnel2D(_grid2(4), wh).shape == (4, 4)
+
+    def test_inside_arch(self):
+        # Origin is inside the tunnel arch (wh=(0.3, 0.3))
+        wh = np.array([0.3, 0.3])
+        assert sdf.sdTunnel2D(_p2(0, 0), wh)[0] < 0
+
+    def test_outside(self):
+        wh = np.array([0.3, 0.3])
+        assert sdf.sdTunnel2D(_p2(2.0, 0), wh)[0] > 0
 
 
 class TestStairs2D:
@@ -334,6 +406,16 @@ class TestQuadraticCircle2D:
 class TestHyperbola2D:
     def test_returns_array(self):
         assert sdf.sdHyperbola2D(_grid2(4), 0.5, 0.3).shape == (4, 4)
+
+    def test_inside(self):
+        # After abs-fold and 45° rotation: px_r=(|px|-|py|)/√2, py_r=(|px|+|py|)/√2
+        # phi < 0 when px_r*py_r ≥ k, i.e. (|px|²-|py|²)/2 ≥ k.
+        # p=(1.1, 0.1): (1.21-0.01)/2 = 0.60 ≥ k=0.5 → inside
+        assert sdf.sdHyperbola2D(_p2(1.1, 0.1), 0.5, 0.3)[0] < 0
+
+    def test_outside(self):
+        # On the axis away from curve: p=(0, 1.0): (0-1)/2 = -0.5 < 0.5 → outside
+        assert sdf.sdHyperbola2D(_p2(0.0, 1.0), 0.5, 0.3)[0] > 0
 
 
 class TestTrapezoid2D:

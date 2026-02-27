@@ -6,7 +6,7 @@ These tests require pyAMReX installed via conda::
     conda activate pyamrex
 
 Without pyAMReX the entire module is skipped automatically.
-Run the rest of the test suite (215 tests) without any AMReX dependency.
+Run the rest of the test suite without any AMReX dependency.
 """
 import numpy as np
 import pytest
@@ -106,6 +106,68 @@ class TestSDFLibrary2D:
         assert phi[16, 8 ] < 0   # left circle centre
         assert phi[16, 24] < 0   # right circle centre
 
+    def test_subtract_removes_cutter(self):
+        # subtract(cutter, base): cutter=small circle at origin, base=big circle at origin
+        # Result = big circle with hole. Origin (inside both) → outside result.
+        from sdf2d import SDFLibrary2D
+        geom, ba, dm = _make_grid_2d(n=32)
+        lib = SDFLibrary2D(geom, ba, dm)
+        cutter = lib.circle(center=(0.0, 0.0), radius=0.2)
+        base   = lib.circle(center=(0.0, 0.0), radius=0.5)
+        result = lib.subtract(cutter, base)
+        phi = _collect_2d(result, 32)
+        assert phi[16, 16] > 0   # origin is in the hole → outside
+        # Point inside base but outside cutter should be inside result
+        # (0.35, 0) → index ≈ (16, 24) depending on grid, use a safe offset
+        assert phi[16, 21] < 0   # ~(0.25, 0) is inside base, outside cutter
+
+    def test_intersect_requires_both(self):
+        # Intersection of two half-overlapping circles
+        from sdf2d import SDFLibrary2D
+        geom, ba, dm = _make_grid_2d(n=32)
+        lib = SDFLibrary2D(geom, ba, dm)
+        a = lib.circle(center=(-0.1, 0.0), radius=0.3)
+        b = lib.circle(center=( 0.1, 0.0), radius=0.3)
+        inter = lib.intersect(a, b)
+        phi = _collect_2d(inter, 32)
+        assert phi[16, 16] < 0   # origin is in the overlap → inside
+        assert phi[16,  4] > 0   # far left (only inside a) → outside intersection
+
+    def test_negate_flips_sign(self):
+        from sdf2d import SDFLibrary2D
+        geom, ba, dm = _make_grid_2d(n=32)
+        lib = SDFLibrary2D(geom, ba, dm)
+        circ = lib.circle(center=(0.0, 0.0), radius=0.3)
+        neg  = lib.negate(circ)
+        phi_orig = _collect_2d(circ, 32)
+        phi_neg  = _collect_2d(neg, 32)
+        npt.assert_allclose(phi_neg, -phi_orig)
+
+    def test_rounded_box_inside_origin(self):
+        from sdf2d import SDFLibrary2D
+        geom, ba, dm = _make_grid_2d(n=32)
+        lib = SDFLibrary2D(geom, ba, dm)
+        mf = lib.rounded_box(center=(0.0, 0.0), half_size=(0.3, 0.3), radius=0.05)
+        phi = _collect_2d(mf, 32)
+        assert phi[16, 16] < 0
+
+    def test_hexagon_inside_origin(self):
+        from sdf2d import SDFLibrary2D
+        geom, ba, dm = _make_grid_2d(n=32)
+        lib = SDFLibrary2D(geom, ba, dm)
+        mf = lib.hexagon(center=(0.0, 0.0), radius=0.4)
+        phi = _collect_2d(mf, 32)
+        assert phi[16, 16] < 0
+
+    def test_from_geometry_2d(self):
+        from sdf2d import SDFLibrary2D, Circle2D
+        geom, ba, dm = _make_grid_2d(n=32)
+        lib = SDFLibrary2D(geom, ba, dm)
+        circle_geom = Circle2D(center=(0.0, 0.0), radius=0.3)
+        mf = lib.from_geometry(circle_geom)
+        phi = _collect_2d(mf, 32)
+        assert phi[16, 16] < 0
+
 
 # ---------------------------------------------------------------------------
 # 3D tests
@@ -151,3 +213,43 @@ class TestSDFLibrary3D:
         phi = _collect_3d(u, 16)
         assert phi[8, 4,  8] < 0   # left sphere
         assert phi[8, 12, 8] < 0   # right sphere
+
+    def test_subtract_removes_cutter(self):
+        # subtract(cutter, base): cutter=small sphere, base=big sphere
+        # Origin (inside both) → outside result (in the hole)
+        from sdf3d import SDFLibrary3D
+        geom, ba, dm = _make_grid_3d(n=16)
+        lib = SDFLibrary3D(geom, ba, dm)
+        cutter = lib.sphere(center=(0.0, 0.0, 0.0), radius=0.2)
+        base   = lib.sphere(center=(0.0, 0.0, 0.0), radius=0.5)
+        result = lib.subtract(cutter, base)
+        phi = _collect_3d(result, 16)
+        assert phi[8, 8, 8] > 0   # origin is in the hole
+
+    def test_intersect_requires_both(self):
+        from sdf3d import SDFLibrary3D
+        geom, ba, dm = _make_grid_3d(n=16)
+        lib = SDFLibrary3D(geom, ba, dm)
+        a = lib.sphere(center=(-0.1, 0.0, 0.0), radius=0.3)
+        b = lib.sphere(center=( 0.1, 0.0, 0.0), radius=0.3)
+        inter = lib.intersect(a, b)
+        phi = _collect_3d(inter, 16)
+        assert phi[8, 8, 8] < 0   # overlap region → inside
+        assert phi[8, 2, 8] > 0   # far left (only inside a) → outside
+
+    def test_round_box_inside_origin(self):
+        from sdf3d import SDFLibrary3D
+        geom, ba, dm = _make_grid_3d(n=16)
+        lib = SDFLibrary3D(geom, ba, dm)
+        mf = lib.round_box(center=(0.0, 0.0, 0.0), half_size=(0.3, 0.3, 0.3), radius=0.05)
+        phi = _collect_3d(mf, 16)
+        assert phi[8, 8, 8] < 0
+
+    def test_from_geometry_3d(self):
+        from sdf3d import SDFLibrary3D, Sphere3D
+        geom, ba, dm = _make_grid_3d(n=16)
+        lib = SDFLibrary3D(geom, ba, dm)
+        sphere_geom = Sphere3D(center=(0.0, 0.0, 0.0), radius=0.3)
+        mf = lib.from_geometry(sphere_geom)
+        phi = _collect_3d(mf, 16)
+        assert phi[8, 8, 8] < 0

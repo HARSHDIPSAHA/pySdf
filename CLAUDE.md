@@ -24,7 +24,7 @@ pySdf/
 │   └── examples/
 │       ├── nato_stanag.py      # NATOFragment(lib, diameter, L_over_D, cone_angle_deg)
 │       └── rocket_assembly.py  # RocketAssembly(lib, body_radius, ...)
-├── tests/                # 214 passed, 1 skipped (AMReX)
+├── tests/                # pytest suite; test_amrex.py skips without pyAMReX
 ├── scripts/
 │   ├── gallery_2d.py           # All sdf2d shapes on one matplotlib page
 │   ├── gallery_3d.py           # All sdf3d 3D shapes (marching cubes)
@@ -47,7 +47,7 @@ pySdf/
 
 ## Running tests
 ```bash
-pytest tests/        # 212 passed, 1 skipped (test_amrex.py without pyAMReX)
+pytest tests/        # test_amrex.py skips automatically without pyAMReX
 ```
 
 All tests pass without AMReX. `tests/test_amrex.py` skips automatically via
