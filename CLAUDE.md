@@ -47,7 +47,7 @@ pySdf/
 
 ## Running tests
 ```bash
-pytest tests/        # 214 passed, 1 skipped (test_amrex.py without pyAMReX)
+pytest tests/        # 212 passed, 1 skipped (test_amrex.py without pyAMReX)
 ```
 
 All tests pass without AMReX. `tests/test_amrex.py` skips automatically via
@@ -79,7 +79,19 @@ Or build from source: https://pyamrex.readthedocs.io/en/latest/install/cmake.htm
 ### GLSL-to-numpy simultaneous update
 `p -= 2.0*min(dot(k,p),0.0)*k` in GLSL updates both components simultaneously.
 Python sequential `px=...; py=...` is wrong. Fix: compute scalar once, then apply.
-Affects: `sdPentagon2D`, `sdHexagon2D`, `sdOctagon2D`, `sdHexagram2D`, `sdStar5`
+Affects: `sdPentagon2D`, `sdHexagon2D`, `sdOctagon2D`, `sdHexagram2D`
+
+### GLSL mat2 is column-major
+`mat2(a,b,c,d)` in GLSL has col0=(a,b), col1=(c,d), so `M*p = (a*px+c*py, b*px+d*py)`.
+Affects: `sdStairs2D` (both the forward and inverse rotations).
+
+### sdStar m parameter
+`sdStar(p, r, n, m)`: `m` must satisfy `2 ≤ m ≤ n`. m=2 gives the sharpest star;
+m=n degenerates to a regular polygon. `sdStar5` was removed — use `sdStar(p, r, 5, 2.0)`.
+
+### sdOctagon2D fold directions
+Second fold uses `vec2(-k.x, k.y)` not `vec2(k.y, k.x)` — negating the x component
+is not the same as swapping indices.
 
 ### np.where evaluates both branches
 `np.where(cond, A, B)` computes both A and B for all elements. Operations like

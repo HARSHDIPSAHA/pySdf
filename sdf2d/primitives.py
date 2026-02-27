@@ -182,11 +182,11 @@ def sdOctagon2D(p: _F, r: float) -> _F:
     k  = np.array([-0.9238795325, 0.3826834323, 0.4142135623])
     px = np.abs(p[..., 0])
     py = np.abs(p[..., 1])
-    # Two fold steps: k.xy then k.yx
+    # Two fold steps: k.xy then (-k.x, k.y)
     d1 = 2.0 * np.minimum(dot(vec2(px, py), k[:2]), 0.0)
     px = px - d1 * k[0];  py = py - d1 * k[1]
-    d2 = 2.0 * np.minimum(dot(vec2(px, py), vec2(k[1], k[0])), 0.0)
-    px = px - d2 * k[1];  py = py - d2 * k[0]
+    d2 = 2.0 * np.minimum(dot(vec2(px, py), vec2(-k[0], k[1])), 0.0)
+    px = px - d2 * (-k[0]);  py = py - d2 * k[1]
     px = px - clamp(px, -k[2] * r, k[2] * r)
     py = py - r
     return length(vec2(px, py)) * np.sign(py)
@@ -207,18 +207,30 @@ def sdHexagram2D(p: _F, r: float) -> _F:
     return length(vec2(px, py)) * np.sign(py)
 
 
-def sdStar5(p: _F, r: float, rf: float) -> _F:
-    """2-D 5-pointed star; *r* outer radius, *rf* inner factor (0–1)."""
-    return sdStar(p, r, 5, rf)
+# float sdStar( in vec2 p, in float r, in int n, in float m)
+# {
+#     // next 4 lines can be precomputed for a given shape
+#     float an = 3.141593/float(n);
+#     float en = 3.141593/m;  // m is between 2 and n
+#     vec2  acs = vec2(cos(an),sin(an));
+#     vec2  ecs = vec2(cos(en),sin(en)); // ecs=vec2(0,1) for regular polygon
 
-
+#     float bn = mod(atan(p.x,p.y),2.0*an) - an;
+#     p = length(p)*vec2(cos(bn),abs(sin(bn)));
+#     p -= r*acs;
+#     p += ecs*clamp( -dot(p,ecs), 0.0, r*acs.y/ecs.y);
+#     return length(p)*sign(p.x);
+# }
 def sdStar(p: _F, r: float, n: int, m: float) -> _F:
-    """2-D N-pointed star; *r* radius, *n* points, *m* inner factor."""
+    """2-D N-pointed star; *r* radius, *n* points, *m* inner factor (2 ≤ m ≤ n)."""
+    if not (2 <= m <= n):
+        raise ValueError(f"Invalid star parameters: n={n}, m={m} (require 2 ≤ m ≤ n)")
     an  = np.pi / n
     en  = np.pi / m
     acs = vec2(np.cos(an), np.sin(an))
     ecs = vec2(np.cos(en), np.sin(en))
-    bn  = np.arctan2(np.abs(p[..., 0]), p[..., 1]) % (2.0 * an) - an
+
+    bn  = np.arctan2(p[..., 0], p[..., 1]) % (2.0 * an) - an
     px  = length(p) * np.cos(bn)
     py  = length(p) * np.abs(np.sin(bn))
     px  = px - r * acs[0];  py = py - r * acs[1]
@@ -516,14 +528,16 @@ def sdStairs2D(p: _F, wh: _F, n: int) -> _F:
     )
     s   = np.sign(np.maximum(-py, px - ba[0]))
     dia = length(wh)
-    # Rotate into stair-aligned frame: mat2(wh.x,-wh.y, wh.y,wh.x)/dia
-    rx  = (wh[0] * px - wh[1] * py) / dia
-    ry  = (wh[1] * px + wh[0] * py) / dia
+    # Rotate into stair-aligned frame: mat2(wh.x,-wh.y, wh.y,wh.x)/dia  (GLSL column-major)
+    # col0=(wh.x,-wh.y), col1=(wh.y,wh.x) → rx = wh.x*px + wh.y*py, ry = -wh.y*px + wh.x*py
+    rx  = (wh[0] * px + wh[1] * py) / dia
+    ry  = (-wh[1] * px + wh[0] * py) / dia
     id_ = clamp(np.round(rx / dia), 0.0, n - 1.0)
     rx  = rx - id_ * dia
-    # Rotate back: mat2(wh.x,wh.y,-wh.y,wh.x)/dia
-    bx  = (wh[0] * rx + wh[1] * ry) / dia
-    by  = (-wh[1] * rx + wh[0] * ry) / dia
+    # Rotate back: mat2(wh.x,wh.y,-wh.y,wh.x)/dia  (GLSL column-major)
+    # col0=(wh.x,wh.y), col1=(-wh.y,wh.x) → bx = wh.x*rx - wh.y*ry, by = wh.y*rx + wh.x*ry
+    bx  = (wh[0] * rx - wh[1] * ry) / dia
+    by  = (wh[1] * rx + wh[0] * ry) / dia
     hh  = wh[1] / 2.0
     by  = by - hh
     s   = np.where(by > hh * np.sign(bx), 1.0, s)

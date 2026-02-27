@@ -167,11 +167,6 @@ class TestHexagram2D:
         assert sdf.sdHexagram2D(_p2(0, 0), 0.3)[0] < 0
 
 
-class TestStar5:
-    def test_inside(self):
-        assert sdf.sdStar5(_p2(0, 0), 0.3, 0.5)[0] < 0
-
-
 class TestStar:
     def test_inside(self):
         assert sdf.sdStar(_p2(0, 0), 0.3, 5, 2.0)[0] < 0

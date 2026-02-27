@@ -11,8 +11,6 @@ formulas are referenced from
 
 - currently the cells in the 3D renders of gallery_3d.png have a lot of empty space; expand each render inside its cell, without affecting its shape. This is a visualization issue, not a geometry issue, so modify scripts/gallery_3d.py to fix this.
 
-- Go through the comments placed in primitives.py inside sdf2d and fix the marked functions. Check the formulas against the original iquilez formulas for them.
-
 - Use code review agent for general problems. Ask it to ignore backwards compatibility for the sake of cleaniless.
 - Ask agent to create a linear walkthrough of the library in WALKTHROUGH.md.
 - Create new powerpoint

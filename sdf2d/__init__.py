@@ -71,7 +71,6 @@ from .geometry import (
 
     # Stars
     Hexagram2D,
-    Star5_2D,
     Star2D,
 
     # Arcs and sectors
@@ -143,7 +142,6 @@ __all__ = [
 
     # Stars
     "Hexagram2D",
-    "Star5_2D",
     "Star2D",
 
     # Arcs and sectors

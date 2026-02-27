@@ -35,7 +35,7 @@ def _make_shapes() -> list[tuple[str, object]]:
         EquilateralTriangle2D, TriangleIsosceles2D, Triangle2D,
         UnevenCapsule2D,
         Pentagon2D, Hexagon2D, Octagon2D, NGon2D,
-        Hexagram2D, Star5_2D, Star2D,
+        Hexagram2D, Star2D,
         Pie2D, CutDisk2D, Arc2D, Ring2D, Horseshoe2D,
         Vesica2D, Moon2D, RoundedCross2D, Egg2D, Heart2D, Cross2D, RoundedX2D,
         Polygon2D, Ellipse2D, Parabola2D, ParabolaSegment2D, Bezier2D,
@@ -63,7 +63,6 @@ def _make_shapes() -> list[tuple[str, object]]:
         ("Octagon2D",            Octagon2D(0.65)),
         ("NGon2D(7)",            NGon2D(0.65, 7)),
         ("Hexagram2D",           Hexagram2D(0.55)),
-        ("Star5_2D",             Star5_2D(0.65, 0.4)),
         ("Star2D(5)",            Star2D(0.65, 5, 2.0)),
         ("Pie2D",                Pie2D(sc, 0.7)),
         ("CutDisk2D",            CutDisk2D(0.7, 0.1)),
@@ -159,7 +158,9 @@ def render_gallery(shapes: list[tuple[str, object]], out_path: str, ncols: int =
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render all sdf2d shapes to a single PNG gallery.")
-    parser.add_argument("--out", default="gallery_2d.png", help="Output PNG path")
+    # Default output path: save in project root (parent of scripts/)
+    default_out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gallery_2d.png")
+    parser.add_argument("--out", default=default_out, help="Output PNG path")
     parser.add_argument("--cols", type=int, default=7, help="Number of columns (default 7)")
     args = parser.parse_args()
 

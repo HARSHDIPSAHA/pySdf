@@ -257,15 +257,16 @@ class Hexagram2D(Geometry2D):
         super().__init__(lambda p: sdf.sdHexagram2D(p, radius))
 
 
-class Star5_2D(Geometry2D):
-    """5-pointed star with outer *radius* and inner factor *inner_factor* (0–1)."""
-
-    def __init__(self, outer_radius: float, inner_factor: float) -> None:
-        super().__init__(lambda p: sdf.sdStar5(p, outer_radius, inner_factor))
-
-
 class Star2D(Geometry2D):
-    """N-pointed star with *radius*, *n_points* points, and *factor* inner ratio."""
+    """N-pointed star with *radius* and *n_points* points.
+
+    Parameters
+    ----------
+    factor:
+        Controls pointiness; must satisfy ``2 ≤ factor ≤ n_points``.
+        ``factor=2`` gives the sharpest star; ``factor=n_points`` gives a
+        regular polygon.
+    """
 
     def __init__(self, radius: float, n_points: int, factor: float) -> None:
         super().__init__(lambda p: sdf.sdStar(p, radius, n_points, factor))
