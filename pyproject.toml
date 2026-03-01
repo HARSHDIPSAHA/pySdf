@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sdf-library"
+version = "0.1.0"
+description = "2D and 3D Signed Distance Function library with optional AMReX integration"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+]
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.5.0", "scikit-image>=0.19.0", "plotly>=5.0"]
+dev = ["pytest>=7.0"]
+# pyAMReX is NOT on PyPI — install separately via:
+#   conda create -n pyamrex -c conda-forge pyamrex
+# No entry here; uv.lock only covers resolvable packages.
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sdf2d*", "sdf3d*", "stl2sdf*"]
+
+[tool.setuptools]
+py-modules = ["_sdf_common"]

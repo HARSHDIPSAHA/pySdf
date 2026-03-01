@@ -11,25 +11,30 @@ pySdf/
 ├── _sdf_common.py        # Shared helpers: vec2/vec3, length/dot/clamp, opUnion/opSubtraction/...
 ├── sdf2d/
 │   ├── __init__.py       # Exports all 2D classes
-│   ├── primitives.py        # All 2D SDF math; re-exports _sdf_common + adds 2D primitives + opTx2D
+│   ├── primitives.py     # All 2D SDF math; re-exports _sdf_common + adds 2D primitives + opTx2D
 │   ├── geometry.py       # Circle2D, Box2D, ... + Union2D, Intersection2D, Subtraction2D
 │   ├── grid.py           # sample_levelset_2d(geom, bounds, resolution) -> ndarray
 │   └── amrex.py          # SDFLibrary2D (requires amrex.space2d)
 ├── sdf3d/
 │   ├── __init__.py       # Exports all 3D classes
-│   ├── primitives.py        # All 3D SDF math; re-exports _sdf_common + adds 3D primitives + warps
+│   ├── primitives.py     # All 3D SDF math; re-exports _sdf_common + adds 3D primitives + warps
 │   ├── geometry.py       # Sphere3D, Box3D, ... + Union3D, Intersection3D, Subtraction3D
 │   ├── grid.py           # sample_levelset_3d(geom, bounds, resolution) -> ndarray
 │   ├── amrex.py          # SDFLibrary3D (requires amrex.space3d)
 │   └── examples/
 │       ├── nato_stanag.py      # NATOFragment(lib, diameter, L_over_D, cone_angle_deg)
 │       └── rocket_assembly.py  # RocketAssembly(lib, body_radius, ...)
-├── tests/                # pytest suite; test_amrex.py skips without pyAMReX
+├── stl2sdf/
+│   ├── __init__.py       # Re-exports load_stl, mesh_to_sdf, sample_sdf_from_stl
+│   └── mesh_sdf.py       # STL loader + Ericson closest-point + Möller-Trumbore sign
+├── tests/                # pytest suite (308 pass, 1 skip); test_amrex.py skips without pyAMReX
 ├── scripts/
 │   ├── gallery_2d.py           # All sdf2d shapes on one matplotlib page
 │   ├── gallery_3d.py           # All sdf3d 3D shapes (marching cubes)
 │   └── render_surface_from_plotfile.py  # AMReX plotfile -> PNG (needs pyAMReX+yt)
-├── examples/             # Standalone runnable examples (no AMReX required)
+├── examples/             # Standalone runnable examples; outputs written to examples/
+│   └── stl_sdf_demo.py   # Downloads ISS wrench STL, samples SDF, saves Plotly HTML
+├── pyproject.toml        # uv-managed deps: numpy (core), plotly/matplotlib/scikit-image (viz)
 ├── gallery_2d.png        # Pre-rendered 2D gallery (repo root)
 └── gallery_3d.png        # Pre-rendered 3D gallery (repo root)
 ```
