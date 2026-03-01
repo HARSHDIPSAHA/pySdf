@@ -10,7 +10,7 @@ A 2D and 3D Signed Distance Function library with STL mesh conversion and option
 - `sdf2d/` — 2D geometry package.
 - `sdf3d/` — 3D geometry package.
 - `stl2sdf/` — STL mesh → SDF package (pure NumPy).
-- `tests/` — pytest suite (308 pass, 1 skip); no AMReX required.
+- `tests/` — pytest suite; no AMReX required (`test_amrex.py` skips automatically).
 - `scripts/` — Gallery and plotfile rendering utilities (not part of the library API).
 - `examples/` — Standalone runnable demos; outputs written to this folder.
 - `gallery_2d.png`, `gallery_3d.png` — Pre-rendered shape galleries.
@@ -45,11 +45,12 @@ A 2D and 3D Signed Distance Function library with STL mesh conversion and option
 Converts binary or ASCII STL meshes into signed distance fields via pure NumPy.
 Requires a **watertight** (closed, 2-manifold) mesh for correct sign determination.
 
-- `mesh_sdf.py` — All logic:
-  - `load_stl(path)` → `(F, 3, 3)` float64 — binary + ASCII loader
-  - `mesh_to_sdf(points, triangles)` → `(N,)` — Ericson closest-point + Möller–Trumbore sign
-  - `sample_sdf_from_stl(path, bounds, resolution)` → `(nz, ny, nx)` — grid API matching `sample_levelset_3d`
-- `__init__.py` — Re-exports `load_stl`, `mesh_to_sdf`, `sample_sdf_from_stl`.
+- `_math.py` — Private internals:
+  - `_stl_to_triangles(path)` → `(F, 3, 3)` float64 — binary + ASCII loader
+  - `_triangles_to_sdf(points, triangles)` → `(N,)` — Ericson closest-point + Möller–Trumbore sign
+- `geometry.py` — Public API:
+  - `stl_to_geometry(path, *, ray_dir=None)` → `Geometry3D` — load STL and return a composable geometry object
+- `__init__.py` — Re-exports `stl_to_geometry`.
 
 **Algorithms:**
 - *Unsigned distance*: Christer Ericson's Voronoi-region closest-point (7 regions, O(F×N))
@@ -70,7 +71,7 @@ All tests pass with `pytest` and require only `numpy`. AMReX is not needed.
 | `test_sdf3d_geometry.py` | Every 3D geometry class: sign correctness, transforms, booleans |
 | `test_sdf3d_grid.py` | `sample_levelset_3d` shape/sign, `save_npy` round-trip |
 | `test_complex.py` | `NATOFragment` and `RocketAssembly` (mock lib, no AMReX) |
-| `test_stl2sdf.py` | `load_stl` (binary + ASCII), `_sq_dist_to_tri` (7 Voronoi regions), `_mt_ray_hits`, `mesh_to_sdf`, `sample_sdf_from_stl` — all synthetic, no downloads |
+| `test_stl2sdf.py` | `_stl_to_triangles` (binary + ASCII), `_triangles_to_sdf` (7 Voronoi regions, ray casting, sign), `stl_to_geometry` — all synthetic, no downloads |
 | `test_amrex.py` | `SDFLibrary2D` and `SDFLibrary3D` — **skipped automatically without pyAMReX** |
 
 ```bash
@@ -95,31 +96,32 @@ Standalone runnable demos. Outputs (PNG, HTML, NPY) are written to `examples/`.
 
 | File | Description |
 |------|-------------|
-| `union_example.py` | Two spheres joined with `Union3D` |
-| `intersection_example.py` | Sphere–sphere intersection |
-| `subtraction_example.py` | Sphere with spherical cavity via `Subtraction3D` |
-| `elongation_example.py` | Sphere elongated into a capsule |
-| `complex_example.py` | Chains all four operations, one PNG per step |
-| `nato_stanag_4496_test.py` | NATO fragment impact scene (no AMReX required) |
-| `stl_sdf_demo.py` | Downloads ISS wrench STL, samples SDF, saves interactive Plotly HTML |
+| `sdf3d/union_example.py` | Two spheres joined with `Union3D` |
+| `sdf3d/intersection_example.py` | Sphere–sphere intersection |
+| `sdf3d/subtraction_example.py` | Sphere with spherical cavity via `Subtraction3D` |
+| `sdf3d/elongation_example.py` | Sphere elongated into a capsule |
+| `sdf3d/complex_example.py` | Chains all four operations, one PNG per step |
+| `stl2sdf/nasa_shapes_demo.py` | Downloads 4 NASA meshes (Orion/CubeSat/wheel/Eros), saves Plotly HTML report |
+| `stl2sdf/nasa_boolean_demo.py` | Boolean ops demo: mesh union/subtract with analytic sphere |
 
 ---
 
 ### Design
 
 ```
-User parameters
-      ↓
-Geometry classes      STL file
-(sdf2d / sdf3d)          ↓
-      ↓              stl2sdf.load_stl
-SDF evaluation              ↓
-(primitives.py)      stl2sdf.mesh_to_sdf
+User parameters          STL file
       ↓                     ↓
-Level-set field   φ(x, y[, z]) on a grid
-      ↓
-Output:  NumPy ndarray  OR  AMReX MultiFab
+Geometry classes      stl2sdf.stl_to_geometry
+(sdf2d / sdf3d)             ↓
+      └──────── Geometry3D ─┘
+                    ↓
+            SDF evaluation
+            (primitives.py)
+                    ↓
+      Level-set field   φ(x, y[, z]) on a grid
+                    ↓
+      Output:  NumPy ndarray  OR  AMReX MultiFab
 ```
 
-- **NumPy path** (no AMReX): `sample_levelset_2d` / `sample_levelset_3d` / `sample_sdf_from_stl` → `np.ndarray`
+- **NumPy path** (no AMReX): `sample_levelset_2d` / `sample_levelset_3d` → `np.ndarray`
 - **AMReX path**: `SDFLibrary2D` / `SDFLibrary3D` → `amr.MultiFab`

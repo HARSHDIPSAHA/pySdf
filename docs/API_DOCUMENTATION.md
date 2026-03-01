@@ -47,7 +47,7 @@ methods (conda, source build, wheel injection).
 | STL mesh → SDF grid | `stl2sdf` |
 | AMReX MultiFab output | `sdf2d.amrex`, `sdf3d.amrex` |
 | Complex assemblies | `sdf3d.examples` (`NATOFragment`, `RocketAssembly`) |
-| 308 unit tests | `tests/` |
+| Comprehensive unit tests | `tests/` |
 
 ---
 
@@ -362,58 +362,44 @@ mf = lib.negate(mf)
 
 ## STL → SDF — `stl2sdf`
 
-Converts binary or ASCII STL meshes into SDF grids using pure NumPy.
+Converts binary or ASCII STL meshes into a `Geometry3D` object using pure NumPy.
 Requires a **watertight** (closed, 2-manifold) mesh for correct sign determination.
 Complexity is O(F × N) — no BVH acceleration.
 
 ```python
-from stl2sdf import load_stl, mesh_to_sdf, sample_sdf_from_stl
+from stl2sdf import stl_to_geometry
 ```
 
-### `load_stl`
+### `stl_to_geometry`
 
 ```python
-triangles = load_stl("mesh.stl")
-# triangles.shape == (F, 3, 3)  — F triangles, 3 vertices, 3 coords (x,y,z)
-# supports binary and ASCII STL
+from stl2sdf import stl_to_geometry
+from sdf3d import Sphere3D
+from sdf3d.grid import sample_levelset_3d
+
+wheel = stl_to_geometry("mars_wheel.stl")
+# Returns a Geometry3D — compatible with all analytic primitives
+
+# Combine with analytic shapes
+hollowed = wheel.subtract(Sphere3D(0.3))
+phi = sample_levelset_3d(hollowed, bounds=((-1,1),(-1,1),(-1,1)), resolution=(32,32,32))
+# phi.shape == (32, 32, 32)
 ```
 
-### `mesh_to_sdf`
+Optional `ray_dir` keyword argument overrides the default irrational ray direction used
+for sign determination. Avoid axis-aligned directions with axis-aligned meshes.
 
-```python
-import numpy as np
+The returned `Geometry3D` supports all the usual methods: `.translate()`, `.rotate_x/y/z()`,
+`.scale()`, `.union()`, `.subtract()`, `.intersect()`, `.round()`, `.onion()`.
 
-points = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])  # (N, 3)
-phi    = mesh_to_sdf(points, triangles)
-# phi.shape == (N,);  phi < 0 inside, phi > 0 outside
-```
-
-Optional `ray_dir` parameter overrides the default irrational ray direction used for
-sign determination. Avoid axis-aligned directions with axis-aligned meshes.
-
-### `sample_sdf_from_stl`
-
-Grid API matching `sample_levelset_3d` exactly — same cell-centre formula,
-same `(nz, ny, nx)` output shape:
-
-```python
-phi = sample_sdf_from_stl(
-    "mesh.stl",
-    bounds=((x0,x1), (y0,y1), (z0,z1)),
-    resolution=(nx, ny, nz),
-)
-# phi.shape == (nz, ny, nx)
-```
-
-### Demo
+### Demos
 
 ```bash
-uv run python examples/stl_sdf_demo.py --res 20   # downloads ISS wrench STL, ~15 s
-uv run python examples/stl_sdf_demo.py --res 40   # cleaner surface, ~2-5 min
+uv run python examples/stl2sdf/nasa_shapes_demo.py           # 4 NASA meshes, res=20
+uv run python examples/stl2sdf/nasa_shapes_demo.py --res 30  # higher quality
+uv run python examples/stl2sdf/nasa_shapes_demo.py --skip-eros  # skip 200K-tri Eros
+uv run python examples/stl2sdf/nasa_boolean_demo.py          # mesh union/subtract with sphere
 ```
-
-Outputs `examples/wrench_sdf.npy` and `examples/wrench_sdf.html` (interactive Plotly:
-2D mid-Z heatmap + 3D isosurface).
 
 ---
 
@@ -484,12 +470,12 @@ Functions follow `sd<Shape>` (signed) or `ud<Shape>` (unsigned); operators use `
 ## Tips
 
 - **Sign convention:** `phi < 0` inside, `phi = 0` on surface, `phi > 0` outside.
-- **Grid layout:** `sample_levelset_3d` / `sample_sdf_from_stl` both return shape `(nz, ny, nx)`. Access as `phi[iz, iy, ix]`.
+- **Grid layout:** `sample_levelset_3d` returns shape `(nz, ny, nx)`. Access as `phi[iz, iy, ix]`.
 - **Subtraction argument order:** `Subtraction3D(base, cutter)` — first arg is the base shape, second is what gets cut away. `a.subtract(b)` means "cut b from a".
 - **AMReX initialize/finalize:** Always wrap in `try/finally` with `amr.finalize()`.
 - **Chaining transforms:**
   ```python
   shape = Sphere3D(0.3).translate(0.5, 0, 0).rotate_z(np.pi/4).scale(1.2)
   ```
-- **stl2sdf resolution:** O(F×N) — use `--res 20` for drafts (~15 s for a 14 K-triangle mesh), `--res 40` for quality renders.
-- **Watertight check:** Verify your STL has no boundary edges before using `mesh_to_sdf`. See the troubleshooting section in [INSTALLATION.md](INSTALLATION.md).
+- **stl2sdf resolution:** O(F×N) — use `--res 20` for drafts, `--res 30`+ for quality renders.
+- **Watertight check:** Verify your STL has no boundary edges before using `stl_to_geometry`. See the troubleshooting section in [INSTALLATION.md](INSTALLATION.md).

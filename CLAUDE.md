@@ -25,9 +25,10 @@ pySdf/
 │       ├── nato_stanag.py      # NATOFragment(lib, diameter, L_over_D, cone_angle_deg)
 │       └── rocket_assembly.py  # RocketAssembly(lib, body_radius, ...)
 ├── stl2sdf/
-│   ├── __init__.py       # Re-exports load_stl, mesh_to_sdf, sample_sdf_from_stl
-│   └── mesh_sdf.py       # STL loader + Ericson closest-point + Möller-Trumbore sign
-├── tests/                # pytest suite (308 pass, 1 skip); test_amrex.py skips without pyAMReX
+│   ├── __init__.py       # Re-exports stl_to_geometry
+│   ├── _math.py          # Private: STL loader + Ericson closest-point + Möller-Trumbore sign
+│   └── geometry.py       # Public: stl_to_geometry(path) -> Geometry3D
+├── tests/                # pytest suite; test_amrex.py skips without pyAMReX
 ├── scripts/
 │   ├── gallery_2d.py           # All sdf2d shapes on one matplotlib page
 │   ├── gallery_3d.py           # All sdf3d 3D shapes (marching cubes)
@@ -36,8 +37,8 @@ pySdf/
 │   ├── sdf2d/            # (empty — no 2D examples yet)
 │   ├── sdf3d/            # complex_example.py, union/intersection/subtraction/elongation demos
 │   └── stl2sdf/
-│       ├── stl_sdf_demo.py      # Downloads ISS wrench STL, samples SDF, saves Plotly HTML
-│       └── nasa_shapes_demo.py  # Downloads 4 NASA meshes (Orion/CubeSat/wheel/Eros), saves HTML
+│       ├── nasa_shapes_demo.py  # Downloads 4 NASA meshes (Orion/CubeSat/wheel/Eros), saves HTML
+│       └── nasa_boolean_demo.py # Boolean ops demo: mesh union/subtract with analytic sphere
 ├── docs/
 │   └── stl2sdf_math_explainer.md  # Detailed math walkthrough (Ericson + Möller-Trumbore)
 ├── pyproject.toml        # uv-managed deps: numpy (core), plotly/matplotlib/scikit-image (viz)
@@ -58,7 +59,7 @@ pySdf/
 
 ## Running tests
 ```bash
-pytest tests/        # test_amrex.py skips automatically without pyAMReX
+uv run pytest tests/        # test_amrex.py skips automatically without pyAMReX
 ```
 
 All tests pass without AMReX. `tests/test_amrex.py` skips automatically via
@@ -66,9 +67,17 @@ All tests pass without AMReX. `tests/test_amrex.py` skips automatically via
 
 ## Running the gallery scripts
 ```bash
-python scripts/gallery_2d.py          # saves gallery_2d.png
-python scripts/gallery_3d.py          # saves gallery_3d.png
-python scripts/gallery_3d.py --res 48 # faster draft render
+uv run python scripts/gallery_2d.py          # saves gallery_2d.png
+uv run python scripts/gallery_3d.py          # saves gallery_3d.png
+uv run python scripts/gallery_3d.py --res 48 # faster draft render
+```
+
+## Running examples
+```bash
+uv run python examples/stl2sdf/nasa_shapes_demo.py           # res=20; downloads STLs on first run
+uv run python examples/stl2sdf/nasa_shapes_demo.py --res 30  # higher quality
+uv run python examples/stl2sdf/nasa_shapes_demo.py --skip-eros  # skip 200K-tri Eros mesh
+uv run python examples/stl2sdf/nasa_boolean_demo.py          # boolean ops with mesh + sphere
 ```
 
 ## AMReX installation
@@ -105,9 +114,10 @@ Second fold uses `vec2(-k.x, k.y)` not `vec2(k.y, k.x)` — negating the x compo
 is not the same as swapping indices.
 
 ### STL binary-vs-ASCII detection
-`load_stl` uses the size invariant `len(raw) == 84 + 50 * count` to detect binary STL,
-not the `"solid"` keyword. Some CAD tools (e.g. SolidWorks) produce binary STL files
-whose 80-byte header starts with `"solid"`, which fools keyword-only checks.
+`_stl_to_triangles` (in `stl2sdf/_math.py`) uses the size invariant
+`len(raw) == 84 + 50 * count` to detect binary STL, not the `"solid"` keyword.
+Some CAD tools (e.g. SolidWorks) produce binary STL files whose 80-byte header
+starts with `"solid"`, which fools keyword-only checks.
 
 ### np.where evaluates both branches
 `np.where(cond, A, B)` computes both A and B for all elements. Operations like

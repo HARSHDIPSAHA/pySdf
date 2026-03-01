@@ -73,8 +73,8 @@ See the full guides:
 - `sdf2d/` — 2D package: `Circle2D`, `Box2D`, `Hexagon2D`, … (~50 shapes)
 - `sdf3d/` — 3D package: `Sphere3D`, `Box3D`, `Torus3D`, … (~30 shapes + warps)
 - `sdf3d/examples/` — High-level assemblies (`NATOFragment`, `RocketAssembly`)
-- `stl2sdf/` — STL mesh → SDF: `load_stl`, `mesh_to_sdf`, `sample_sdf_from_stl`
-- `tests/` — pytest suite (308 pass, 1 skip for AMReX); no AMReX required
+- `stl2sdf/` — STL mesh → SDF: `stl_to_geometry`
+- `tests/` — pytest suite; no AMReX required (`test_amrex.py` skips automatically)
 - `scripts/` — Gallery scripts and AMReX plotfile renderer
 - `examples/` — Standalone demos; outputs written to `examples/`
 - `gallery_2d.png`, `gallery_3d.png` — Pre-rendered shape galleries
@@ -85,7 +85,7 @@ See the full guides:
 uv run pytest tests/ -v
 ```
 
-308 tests pass without AMReX. `tests/test_amrex.py` skips automatically via `pytest.importorskip`.
+All tests pass without AMReX. `tests/test_amrex.py` skips automatically via `pytest.importorskip`.
 
 ## Gallery scripts
 

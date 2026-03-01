@@ -29,11 +29,11 @@ uv sync --extra viz --extra dev
 ## Verification
 
 ```bash
-uv run pytest tests/ -v   # 308 pass, 1 skip (AMReX)
+uv run pytest tests/ -v   # test_amrex.py skips without pyAMReX
 
 uv run python -c "from sdf3d import Sphere3D; print('sdf3d OK')"
 uv run python -c "from sdf2d import Circle2D; print('sdf2d OK')"
-uv run python -c "from stl2sdf import mesh_to_sdf; print('stl2sdf OK')"
+uv run python -c "from stl2sdf import stl_to_geometry; print('stl2sdf OK')"
 ```
 
 ---
@@ -163,10 +163,10 @@ Expected when pyAMReX is not installed. Install via Method A, B, or C above.
 Sign determination requires a **watertight** (closed, 2-manifold) mesh.
 Check for open edges with Blender, MeshLab, or:
 ```python
-from stl2sdf.mesh_sdf import load_stl
+from stl2sdf._math import _stl_to_triangles
 import numpy as np
 from collections import Counter
-tris = load_stl("mesh.stl")
+tris = _stl_to_triangles("mesh.stl")
 verts = np.round(tris.reshape(-1, 3), 5)
 _, inv = np.unique(verts, axis=0, return_inverse=True)
 ids = inv.reshape(-1, 3)

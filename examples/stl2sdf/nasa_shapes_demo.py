@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -70,12 +69,6 @@ _EXAMPLES_DIR = Path(__file__).parent
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _download(url: str, dest: Path) -> None:
-    print(f"  Downloading {dest.name} ...", flush=True)
-    urllib.request.urlretrieve(url, dest)
-    print(f"    Saved: {dest.stat().st_size // 1024} KB", flush=True)
-
-
 def _auto_bounds(triangles: np.ndarray, pad_frac: float = 0.10):
     """Return ((x0,x1),(y0,y1),(z0,z1)) with fractional padding."""
     verts = triangles.reshape(-1, 3)
@@ -87,8 +80,10 @@ def _auto_bounds(triangles: np.ndarray, pad_frac: float = 0.10):
 
 
 def _process_shape(shape: dict, res: int) -> dict | None:
-    """Download (if needed), compute SDF, return result dict or None on error."""
-    from stl2sdf import load_stl, sample_sdf_from_stl
+    """Compute SDF for a shape whose STL is already on disk; skip if absent."""
+    from stl2sdf import stl_to_geometry
+    from stl2sdf._math import _stl_to_triangles
+    from sdf3d.grid import sample_levelset_3d
 
     stl_path = _EXAMPLES_DIR / f"{shape['stem']}.stl"
     npy_path = _EXAMPLES_DIR / f"{shape['stem']}_sdf.npy"
@@ -97,17 +92,13 @@ def _process_shape(shape: dict, res: int) -> dict | None:
     print(f"  {shape['name']}", flush=True)
     print(f"{'='*60}", flush=True)
 
-    # --- download ---
     if not stl_path.exists():
-        try:
-            _download(shape["url"], stl_path)
-        except Exception as exc:
-            print(f"  ERROR: download failed: {exc}", file=sys.stderr)
-            return None
+        print(f"  SKIP: {stl_path.name} not found in examples/stl2sdf/", flush=True)
+        return None
 
     # --- inspect ---
-    triangles = load_stl(stl_path)
-    n_tri = len(triangles)
+    triangles = _stl_to_triangles(stl_path)
+    n_tri  = len(triangles)
     bounds = _auto_bounds(triangles)
     print(f"  Triangles : {n_tri:>10,}", flush=True)
     print(f"  Bounds    : {bounds}", flush=True)
@@ -116,8 +107,9 @@ def _process_shape(shape: dict, res: int) -> dict | None:
     print(f"  Est. ops  : ~{est_ops/1e9:.1f}B  (O(FxN))", flush=True)
 
     # --- SDF ---
-    t0 = time.perf_counter()
-    phi = sample_sdf_from_stl(stl_path, bounds, (res, res, res))
+    geom = stl_to_geometry(stl_path)
+    t0   = time.perf_counter()
+    phi  = sample_levelset_3d(geom, bounds, (res, res, res))
     elapsed = time.perf_counter() - t0
 
     inside_frac = (phi < 0).mean() * 100
