@@ -9,15 +9,8 @@ boxes, distribute those boxes, and store the SDF values in a `MultiFab`.
 formulas are referenced from
 [iquilezles.org](https://iquilezles.org/articles/distfunctions/).
 
-## Intent
 
-The goal is to act like a small CAD-like compiler:
-
-User geometry and operations  
-→ Signed Distance Function  
-→ Sampled level-set field on a bounding box grid
-
-Visualization is optional and treated as post-processing.
+<img width="746" height="636" alt="Screenshot 2026-02-03 191159" src="https://github.com/user-attachments/assets/1ca854f8-edfe-4094-8316-355e621f5056" />
 
 ## Installation
 
@@ -51,6 +44,7 @@ After installation, both **2D** (`sdf2d`) and **3D** (`sdf3d`) APIs are availabl
 - `sdf_lib.py`: numpy implementations of the SDF primitives and operators.
 - `scripts/`: visualization and plotfile utilities (optional).
 - `outputs/`: generated images (not required for the library).
+- `sdf3d/complex`: contains complex 3D geometries like Rocket assembly and Nato Stanag fragment.
 
 ## Run
 
