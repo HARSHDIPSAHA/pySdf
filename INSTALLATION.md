@@ -3,18 +3,14 @@
 ## Quick Install
 
 ```bash
-# Basic installation (numpy only)
+# Basic installation
 pip install -e .
 
 # With visualization support (plotly, matplotlib, scikit-image)
 pip install -e .[viz]
-
-# With AMReX support (if available)
-pip install -e .[amrex]
-
-# All features
-pip install -e .[viz,amrex]
 ```
+
+Installing amrex may take more than two hours as it builds from source.
 
 ## What Gets Installed
 
@@ -22,7 +18,7 @@ The `pip install -e .` command installs:
 
 - **`sdf2d`**: 2D signed distance function library
 - **`sdf3d`**: 3D signed distance function library
-- **`sdf_lib.py`**: Core SDF primitive implementations
+- **`sdf_lib.py`**: Core SDF primitive implementations in numpy
 
 ## Package Structure
 
@@ -35,16 +31,6 @@ from sdf2d import Circle, Box2D, Union2D, sample_levelset_2d, SDFLibrary2D
 # 3D API
 from sdf3d import Sphere, Box, Union, sample_levelset, SDFLibrary
 ```
-
-## Dependencies
-
-### Required
-- `numpy>=1.20.0` (always installed)
-
-### Optional
-- **Visualization** (`[viz]`): `matplotlib`, `plotly`, `scikit-image`
-- **AMReX** (`[amrex]`): `amrex>=23.0` (if available)
-- **Development** (`[dev]`): `pytest`, `black`, `flake8`
 
 ## Verification
 

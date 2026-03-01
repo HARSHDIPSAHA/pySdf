@@ -1,5 +1,4 @@
 import numpy as np
-
 from .geometry import Box, Sphere, Union
 from .grid import sample_levelset, save_npy
 

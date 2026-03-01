@@ -1,5 +1,5 @@
 """Setup script for sdf2d and sdf3d packages."""
-from setuptools import setup, find_packages
+from setuptools import setup
 from pathlib import Path
 
 # Read README if it exists
@@ -15,14 +15,16 @@ setup(
     author="Your Name",
     author_email="your.email@example.com",
     url="https://github.com/yourusername/sdf-library",
-    packages=find_packages(),  # Automatically finds sdf2d/ and sdf3d/
-    py_modules=["sdf_lib"],  # Include the top-level sdf_lib module
+    # Using this over setuptools.find_packages() because previously 2d and 3d folders were
+    # being excluded purely by an edge case. This is safer.
+    packages=["sdf2d", "sdf3d", "sdf_stl"],
+    py_modules=["sdf_lib"],
     python_requires=">=3.8",
     install_requires=[
         "numpy>=1.20.0",
+        "amrex>=23.0",
     ],
     extras_require={
-        "amrex": ["amrex>=23.0"],
         "viz": ["matplotlib>=3.5.0", "plotly>=5.0.0", "scikit-image>=0.19.0"],
         "dev": ["pytest>=7.0", "black", "flake8"],
     },

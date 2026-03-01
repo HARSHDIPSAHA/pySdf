@@ -1,5 +1,4 @@
 import numpy as np
-
 import sdf_lib as sdf
 
 

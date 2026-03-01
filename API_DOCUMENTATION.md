@@ -1,25 +1,3 @@
-# SDF Library API Documentation
-
-Complete reference guide for using the Signed Distance Function (SDF) library with pyAMReX.
-
-## Installation
-
-```bash
-# Basic installation (numpy only)
-pip install -e .
-
-# With visualization support (plotly, matplotlib, scikit-image)
-pip install -e .[viz]
-
-# With AMReX support (if available)
-pip install -e .[amrex]
-
-# All features
-pip install -e .[viz,amrex]
-```
-
-**Note**: The library provides both **2D** (`sdf2d`) and **3D** (`sdf3d`) APIs. Both are installed together.
-
 ## Table of Contents
 
 1. [Installation](#installation)
@@ -33,8 +11,6 @@ pip install -e .[viz,amrex]
 7. [Transform Operations](#transform-operations)
 8. [Output Formats](#output-formats)
 9. [Complete Examples](#complete-examples)
-
----
 
 ## 2D vs 3D APIs
 
@@ -81,7 +57,7 @@ try:
     # Save level set to plotfile (for your solver)
     varnames = amr.Vector_string(["phi"])
     amr.write_single_level_plotfile("output/my_levelset", levelset, varnames, geom, 0.0, 0)
-    print("✅ Level set saved to: output/my_levelset/")
+    print("Level set saved to: output/my_levelset/")
 finally:
     amr.finalize()
 ```
@@ -105,7 +81,7 @@ phi = sample_levelset(sphere, bounds, res)
 
 # Save level set to file
 np.save("output/levelset.npy", phi)
-print("✅ Level set saved to: output/levelset.npy")
+print("Level set saved to: output/levelset.npy")
 ```
 
 ---

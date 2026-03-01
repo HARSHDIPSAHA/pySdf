@@ -11,7 +11,7 @@ def _get_component_view(arr):
     return arr[:, :, :, 0, 0]
 
 
-def _copy_mf_like(src, ba, dm):
+def _copy_mf_like(src, ba, dm) -> amr.MultiFab:
     ncomp = src.n_comp() if callable(getattr(src, "n_comp", None)) else src.n_comp
     if callable(getattr(src, "n_grow", None)):
         ngrow = src.n_grow()
