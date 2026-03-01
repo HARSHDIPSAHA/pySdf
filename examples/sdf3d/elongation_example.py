@@ -11,7 +11,7 @@ This preserves the SDF metric: the distance gradient magnitude stays 1
 everywhere, making the result a true signed distance function.
 """
 import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import numpy as np
 from sdf3d import Sphere3D, sample_levelset_3d

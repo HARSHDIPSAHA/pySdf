@@ -7,7 +7,7 @@ Mathematical identity verified:
     Intersection(A, B)(p) == max(A(p), B(p))
 """
 import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import numpy as np
 from sdf3d import Sphere3D, Intersection3D, sample_levelset_3d

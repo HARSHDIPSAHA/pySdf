@@ -17,7 +17,7 @@ In production, pass an SDFLibrary3D instance to NATOFragment instead of
 the MockLib used here.
 """
 import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import numpy as np
 from sdf3d import Box3D, Union3D, sample_levelset_3d

@@ -12,7 +12,7 @@ Mathematical identity verified:
     Subtraction(base, cutter)(p) == max(-cutter(p), base(p))
 """
 import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import numpy as np
 from sdf3d import Sphere3D, Subtraction3D, sample_levelset_3d

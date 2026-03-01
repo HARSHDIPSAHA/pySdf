@@ -13,7 +13,7 @@ Build sequence
 5. Cavity: subtract a small central box
 """
 import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import numpy as np
 from sdf3d import Sphere3D, Box3D, Union3D, Intersection3D, Subtraction3D, sample_levelset_3d
