@@ -32,8 +32,14 @@ pySdf/
 │   ├── gallery_2d.py           # All sdf2d shapes on one matplotlib page
 │   ├── gallery_3d.py           # All sdf3d 3D shapes (marching cubes)
 │   └── render_surface_from_plotfile.py  # AMReX plotfile -> PNG (needs pyAMReX+yt)
-├── examples/             # Standalone runnable examples; outputs written to examples/
-│   └── stl_sdf_demo.py   # Downloads ISS wrench STL, samples SDF, saves Plotly HTML
+├── examples/             # Standalone runnable examples; outputs written alongside scripts
+│   ├── sdf2d/            # (empty — no 2D examples yet)
+│   ├── sdf3d/            # complex_example.py, union/intersection/subtraction/elongation demos
+│   └── stl2sdf/
+│       ├── stl_sdf_demo.py      # Downloads ISS wrench STL, samples SDF, saves Plotly HTML
+│       └── nasa_shapes_demo.py  # Downloads 4 NASA meshes (Orion/CubeSat/wheel/Eros), saves HTML
+├── docs/
+│   └── stl2sdf_math_explainer.md  # Detailed math walkthrough (Ericson + Möller-Trumbore)
 ├── pyproject.toml        # uv-managed deps: numpy (core), plotly/matplotlib/scikit-image (viz)
 ├── gallery_2d.png        # Pre-rendered 2D gallery (repo root)
 └── gallery_3d.png        # Pre-rendered 3D gallery (repo root)
@@ -97,6 +103,11 @@ m=n degenerates to a regular polygon. `sdStar5` was removed — use `sdStar(p, r
 ### sdOctagon2D fold directions
 Second fold uses `vec2(-k.x, k.y)` not `vec2(k.y, k.x)` — negating the x component
 is not the same as swapping indices.
+
+### STL binary-vs-ASCII detection
+`load_stl` uses the size invariant `len(raw) == 84 + 50 * count` to detect binary STL,
+not the `"solid"` keyword. Some CAD tools (e.g. SolidWorks) produce binary STL files
+whose 80-byte header starts with `"solid"`, which fools keyword-only checks.
 
 ### np.where evaluates both branches
 `np.where(cond, A, B)` computes both A and B for all elements. Operations like
