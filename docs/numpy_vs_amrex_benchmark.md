@@ -1,64 +1,43 @@
-# pySdf Performance Notes
+# pySdf — numpy path vs AMReX path
 
-Benchmarked on Windows 11, AMD/Intel CPU, single thread, AMReX 26.01.
+## How each path works
 
-## numpy path — grid size scaling
+**numpy path (`sample_levelset_3d`)** allocates one contiguous point array of shape
+`(nz, ny, nx, 3)` covering the entire domain, evaluates the SDF on it, and returns a
+single `(nz, ny, nx)` array. Both arrays must fit in RAM simultaneously.
 
-Single `Sphere3D`, varying resolution:
+**AMReX path (`SDFLibrary3D.from_geometry`)** iterates over MultiFab patch boxes via
+`MFIter`. For each box it allocates a small local point array, evaluates the SDF on that
+box only, and writes the result back. No single array covering the full domain is ever
+allocated.
 
-| Resolution | Time (ms) | Throughput |
+## Memory scaling
+
+At resolution N³ the numpy path requires a contiguous allocation of
+`N³ × 3 × 8 bytes` for the point array plus `N³ × 8 bytes` for the output — roughly
+`32 × N³` bytes total.
+
+| Resolution | numpy allocation | AMReX peak per box (32³ box) |
 |---|---|---|
-| 16³ | 0.1 | ~47 MVox/s |
-| 32³ | 1.1 | ~25 MVox/s |
-| 64³ | 10–12 | ~21–25 MVox/s |
-| 96³ | 38–43 | ~21–24 MVox/s |
-| 128³ | 90–100 | ~21–23 MVox/s |
+| 64³ | 12 MB | < 1 MB |
+| 256³ | 0.8 GB | < 1 MB |
+| 512³ | 6.4 GB | < 1 MB |
 
-Throughput plateaus at ~21 MVox/s for 64³ and above. The spike at 16³ is startup noise.
+At large resolutions the numpy path requires a single multi-gigabyte contiguous
+allocation, which will fail or cause swapping before computation time becomes the
+bottleneck. The AMReX path's per-box allocations remain small regardless of total
+domain size.
 
-## numpy path — geometry complexity at 64³
+## When to use each path
 
-| Geometry | Time (ms) | Throughput |
-|---|---|---|
-| Sphere3D | 10 | 26 MVox/s |
-| Cylinder3D | 12 | 22 MVox/s |
-| Torus3D | 15 | 18 MVox/s |
-| Box3D | 22 | 12 MVox/s |
-| RoundBox3D | 24 | 11 MVox/s |
-| elongate(sphere) | 21 | 12 MVox/s |
-| round(box) | 22 | 12 MVox/s |
-| translate + rotate_y | 18 | 15 MVox/s |
-| Union3D / Intersection3D / Subtraction3D | 20–21 | 12–13 MVox/s |
-| Union3D(Box3D, Torus3D) | 33 | 7.9 MVox/s |
+| Use case | Recommended path |
+|---|---|
+| Quick visualisation, small grids (≤ 128³) | `sample_levelset_3d` |
+| Production grids, large domains (≥ 256³) | `SDFLibrary3D` |
+| AMR workflows (fill only specific patch boxes) | `SDFLibrary3D` |
 
-`Box3D` is ~2× slower than `Sphere3D` because `max(abs(p)-b, 0)` involves more
-operations than a single subtract-and-length. Boolean ops add minimal overhead
-on their own — their cost is dominated by evaluating both child SDFs.
+## Note on compute speed
 
-## numpy vs AMReX at equal resolution
-
-Single `Sphere3D`:
-
-| Resolution | numpy (ms) | AMReX (ms) | Overhead |
-|---|---|---|---|
-| 32³ | 1.1 | 1.3 | +18% |
-| 64³ | 10.3 | 12.1 | +17% |
-| 96³ | 38.3 | 41.6 | +9% |
-| 128³ | 89.1 | 104.5 | +17% |
-
-`Union3D(Sphere3D, Box3D)`:
-
-| Resolution | numpy (ms) | AMReX (ms) | Overhead |
-|---|---|---|---|
-| 64³ | 30.6 | 31.1 | +2% |
-| 128³ | 288.2 | 295.7 | +3% |
-
-## Why AMReX is slower here
-
-`SDFLibrary3D.from_geometry` calls the same Python/numpy SDF functions as
-`sample_levelset_3d` — there are no native C++ SDF kernels. The extra cost
-comes from the MFIter loop and `to_numpy()` round-trips on each box.
-
-For a single-level full-domain grid, AMReX adds overhead with no benefit.
-It pays off in AMR workflows where only specific refinement-level patch boxes
-need to be filled rather than the whole domain.
+Both paths call the same Python/numpy SDF code — there are no native C++ kernels.
+AMReX adds ~10–17% overhead from the MFIter loop and `to_numpy()` round-trips on each
+box. The AMReX path is not faster; it is memory-safe at scale.

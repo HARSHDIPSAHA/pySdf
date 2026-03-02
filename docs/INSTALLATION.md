@@ -2,6 +2,24 @@
 
 ## Core library
 
+### pip
+
+```bash
+# Core library (numpy only)
+pip install -e .
+
+# With visualization support (plotly, matplotlib, scikit-image)
+pip install -e ".[viz]"
+
+# With development tools (adds pytest)
+pip install -e ".[dev]"
+
+# Everything except AMReX
+pip install -e ".[viz,dev]"
+```
+
+### uv
+
 This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 
 ```bash
@@ -18,7 +36,7 @@ uv sync --extra dev
 uv sync --extra viz --extra dev
 ```
 
-`uv sync` installs all three packages into a local `.venv`:
+Both install all three packages:
 
 | Package | Description |
 |---------|-------------|
