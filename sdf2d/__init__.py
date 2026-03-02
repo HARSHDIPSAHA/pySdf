@@ -1,40 +1,52 @@
 """
-sdf2d - 2D Signed Distance Function Library
+sdf2d — 2D Signed Distance Function Library
 ============================================
 
-A comprehensive library for creating and manipulating 2D signed distance fields (SDFs).
-Based on Inigo Quilez's distance function collection.
+A library for creating and composing 2D signed distance fields (SDFs),
+based on Inigo Quilez's distance function collection.
 
-Basic Usage
+Implemented features
+--------------------
+- Primitive shapes: Circle, Box, triangles, polygons, stars, arcs, ...
+- Boolean operations: Union, Intersection, Subtraction
+- Transforms: translate, rotate, scale, round, onion
+- Grid sampling: :func:`sample_levelset_2d`
+- AMReX MultiFab output: :class:`SDFLibrary2D` (requires pyAMReX 2-D build)
+
+Quick start
 -----------
 
-Creating shapes:
-    >>> from sdf2d import Circle, Box2D, Union2D
-    >>> circle = Circle(radius=0.3)
-    >>> box = Box2D(half_size=(0.2, 0.2)).translate(0.4, 0.0)
-    >>> combined = Union2D(circle, box)
+NumPy mode (no AMReX required)::
 
-Sampling to grid:
-    >>> from sdf2d import sample_levelset_2d
-    >>> bounds = ((-1, 1), (-1, 1))
-    >>> resolution = (512, 512)
-    >>> phi = sample_levelset_2d(combined, bounds, resolution)
+    from sdf2d import Circle2D, Box2D, Union2D, sample_levelset_2d
+    import numpy as np
 
-AMReX integration:
-    >>> import amrex.space2d as amr
-    >>> from sdf2d import SDFLibrary2D
-    >>> amr.initialize([])
-    >>> # ... setup geometry, ba, dm ...
-    >>> lib = SDFLibrary2D(geom, ba, dm)
-    >>> levelset = lib.circle(center=(0, 0), radius=0.3)
+    circle = Circle2D(radius=0.3)
+    box    = Box2D(half_size=(0.2, 0.2)).translate(0.4, 0.0)
+    shape  = Union2D(circle, box)
+
+    bounds     = ((-1.0, 1.0), (-1.0, 1.0))
+    resolution = (512, 512)
+    phi = sample_levelset_2d(shape, bounds, resolution)
+
+AMReX mode::
+
+    import amrex.space2d as amr
+    from sdf2d import SDFLibrary2D
+
+    amr.initialize([])
+    # ... set up geom, ba, dm ...
+    lib      = SDFLibrary2D(geom, ba, dm)
+    levelset = lib.circle(center=(0.0, 0.0), radius=0.3)
+    amr.finalize()
 """
 
 from .geometry import (
-    # Base
+    # Base class
     Geometry2D,
-    
-    # Basic shapes
-    Circle,
+
+    # Primitive shapes
+    Circle2D,
     Box2D,
     RoundedBox2D,
     OrientedBox2D,
@@ -42,33 +54,32 @@ from .geometry import (
     Rhombus2D,
     Trapezoid2D,
     Parallelogram2D,
-    
+
     # Triangles
     EquilateralTriangle2D,
     TriangleIsosceles2D,
     Triangle2D,
-    
+
     # Capsules
     UnevenCapsule2D,
-    
+
     # Regular polygons
     Pentagon2D,
     Hexagon2D,
-    Octogon2D,
+    Octagon2D,
     NGon2D,
-    
+
     # Stars
     Hexagram2D,
-    Star5,
-    Star,
-    
+    Star2D,
+
     # Arcs and sectors
     Pie2D,
     CutDisk2D,
     Arc2D,
     Ring2D,
     Horseshoe2D,
-    
+
     # Special shapes
     Vesica2D,
     Moon2D,
@@ -77,7 +88,7 @@ from .geometry import (
     Heart2D,
     Cross2D,
     RoundedX2D,
-    
+
     # Complex shapes
     Polygon2D,
     Ellipse2D,
@@ -89,26 +100,24 @@ from .geometry import (
     Stairs2D,
     QuadraticCircle2D,
     Hyperbola2D,
-    
+
     # Boolean operations
     Union2D,
     Intersection2D,
     Subtraction2D,
-    
-    # AMReX
-    SDFLibrary2D,
 )
 
 from .grid import sample_levelset_2d, save_npy
+from .amrex import SDFLibrary2D
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     # Base
     "Geometry2D",
-    
-    # Basic shapes
-    "Circle",
+
+    # Primitive shapes
+    "Circle2D",
     "Box2D",
     "RoundedBox2D",
     "OrientedBox2D",
@@ -116,33 +125,32 @@ __all__ = [
     "Rhombus2D",
     "Trapezoid2D",
     "Parallelogram2D",
-    
+
     # Triangles
     "EquilateralTriangle2D",
     "TriangleIsosceles2D",
     "Triangle2D",
-    
+
     # Capsules
     "UnevenCapsule2D",
-    
+
     # Regular polygons
     "Pentagon2D",
     "Hexagon2D",
-    "Octogon2D",
+    "Octagon2D",
     "NGon2D",
-    
+
     # Stars
     "Hexagram2D",
-    "Star5",
-    "Star",
-    
+    "Star2D",
+
     # Arcs and sectors
     "Pie2D",
     "CutDisk2D",
     "Arc2D",
     "Ring2D",
     "Horseshoe2D",
-    
+
     # Special shapes
     "Vesica2D",
     "Moon2D",
@@ -151,7 +159,7 @@ __all__ = [
     "Heart2D",
     "Cross2D",
     "RoundedX2D",
-    
+
     # Complex shapes
     "Polygon2D",
     "Ellipse2D",
@@ -163,16 +171,16 @@ __all__ = [
     "Stairs2D",
     "QuadraticCircle2D",
     "Hyperbola2D",
-    
+
     # Boolean operations
     "Union2D",
     "Intersection2D",
     "Subtraction2D",
-    
-    # AMReX
-    "SDFLibrary2D",
-    
+
     # Grid utilities
     "sample_levelset_2d",
     "save_npy",
+
+    # AMReX integration
+    "SDFLibrary2D",
 ]
